@@ -12,13 +12,24 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { insertTaskSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { z } from "zod";
+import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
 
-type TaskFormData = z.infer<typeof insertTaskSchema>;
+// Client-only schema - omit server fields and handle client-specific validation
+const taskFormSchema = insertTaskSchema
+  .omit({ creatorId: true })
+  .extend({
+    assigneeId: z.union([z.literal("self"), z.string()]).optional(),
+    startDate: z.preprocess(v => (typeof v === 'string' && v ? new Date(v) : v ?? null), z.date().nullable().optional()),
+    dueDate: z.preprocess(v => (typeof v === 'string' && v ? new Date(v) : v ?? null), z.date().nullable().optional()),
+  });
+
+type TaskFormData = z.infer<typeof taskFormSchema>;
 
 export default function TaskModal() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: teams } = useQuery({
     queryKey: ["/api/teams"],
@@ -26,7 +37,7 @@ export default function TaskModal() {
   });
 
   const form = useForm<TaskFormData>({
-    resolver: zodResolver(insertTaskSchema),
+    resolver: zodResolver(taskFormSchema),
     defaultValues: {
       title: "",
       description: "",
@@ -35,6 +46,7 @@ export default function TaskModal() {
       importance: "medium",
       complexity: "medium",
       status: "todo",
+      assigneeId: "self",
     },
   });
 
@@ -63,7 +75,28 @@ export default function TaskModal() {
   });
 
   const onSubmit = (data: TaskFormData) => {
-    createTaskMutation.mutate(data);
+    console.log("🔥 Form submitted with data:", data);
+    console.log("🔥 Form errors:", form.formState.errors);
+    console.log("🔥 User data:", user);
+    
+    if (!user?.id) {
+      toast({
+        title: "Erro",
+        description: "Usuário não autenticado. Faça login novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Build payload expected by server - inject creatorId and normalize assigneeId
+    const payload = {
+      ...data,
+      creatorId: user.id,
+      assigneeId: data.assigneeId === "self" ? user.id : data.assigneeId,
+    };
+    
+    console.log("🔥 Processed data being sent:", payload);
+    createTaskMutation.mutate(payload);
   };
 
   return (

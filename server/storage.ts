@@ -18,6 +18,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -123,8 +124,8 @@ export class DatabaseStorage implements IStorage {
     teamId?: string;
     status?: string;
   }): Promise<TaskWithDetails[]> {
-    const assigneeAlias = users;
-    const creatorAlias = users;
+    const assigneeAlias = alias(users, 'assignee');
+    const creatorAlias = alias(users, 'creator');
     
     let query = db
       .select({
@@ -193,8 +194,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTask(id: string): Promise<TaskWithDetails | undefined> {
-    const assigneeAlias = users;
-    const creatorAlias = users;
+    const assigneeAlias = alias(users, 'assignee');
+    const creatorAlias = alias(users, 'creator');
     
     const [result] = await db
       .select({
