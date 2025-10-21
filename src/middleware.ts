@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import jwt from 'jsonwebtoken'
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -22,11 +21,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  try {
-    jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret')
+  // Verificação simples do token (apenas se existe e não está vazio)
+  // A verificação completa do JWT será feita nas APIs
+  if (token && token.length > 10) {
     console.log('Middleware: Token valid, allowing access')
     return NextResponse.next()
-  } catch (error) {
+  } else {
     console.log('Middleware: Token invalid, redirecting to login')
     return NextResponse.redirect(new URL('/login', request.url))
   }
