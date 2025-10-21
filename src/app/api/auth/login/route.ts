@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         email: user.email, 
         role: user.role 
       },
-      process.env.NEXTAUTH_SECRET || 'fallback-secret',
+      process.env.NEXTAUTH_SECRET || process.env.KEY || 'fallback-secret',
       { expiresIn: '7d' }
     )
 
