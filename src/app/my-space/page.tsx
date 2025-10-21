@@ -197,13 +197,11 @@ export default function MySpacePage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-dark-400 text-sm">{title}</p>
-          <p className={`text-2xl font-bold mt-1 ${color}`}>
-            {loading ? (
-              <div className="animate-pulse bg-dark-600 h-6 w-12 rounded"></div>
-            ) : (
-              value
-            )}
-          </p>
+          {loading ? (
+            <div className="animate-pulse bg-dark-600 h-6 w-12 rounded mt-1"></div>
+          ) : (
+            <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
+          )}
         </div>
         <Icon className={`w-5 h-5 ${color}`} />
       </div>

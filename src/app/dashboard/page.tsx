@@ -107,13 +107,11 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-dark-400 text-sm font-medium">{title}</p>
-          <p className={`text-3xl font-bold mt-2 ${color}`}>
-            {loading ? (
-              <div className="animate-pulse bg-dark-600 h-8 w-16 rounded"></div>
-            ) : (
-              value
-            )}
-          </p>
+          {loading ? (
+            <div className="animate-pulse bg-dark-600 h-8 w-16 rounded mt-2"></div>
+          ) : (
+            <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
+          )}
           {trend && (
             <p className="text-xs text-dark-500 mt-1">{trend}</p>
           )}
