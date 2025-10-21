@@ -1,0 +1,251 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      UserRole @default(MEMBER)
+  sector    String?
+  branch    String?
+  phone     String?
+  lecomUsername String?
+  canOpenTicketsForOthers Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdCards     Card[]           @relation("CardCreator")
+  assignedCards    Card[]           @relation("CardAssignee")
+  teamMemberships  TeamMember[]
+  boardMemberships BoardMember[]
+  cardHistory      CardHistory[]
+  projectCollaborators ProjectCollaborator[]
+
+  @@map("users")
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  parentTeamId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  parentTeam  Team?        @relation("TeamHierarchy", fields: [parentTeamId], references: [id])
+  subTeams    Team[]       @relation("TeamHierarchy")
+  members     TeamMember[]
+  boards      Board[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id     String @id @default(cuid())
+  userId String
+  teamId String
+  role   TeamRole @default(MEMBER)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+model Board {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teamId      String
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team    Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  columns Column[]
+  cards   Card[]
+  members BoardMember[]
+
+  @@map("boards")
+}
+
+model BoardMember {
+  id      String @id @default(cuid())
+  userId  String
+  boardId String
+  role    BoardRole @default(MEMBER)
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+  @@map("board_members")
+}
+
+model Column {
+  id        String   @id @default(cuid())
+  name      String
+  boardId   String
+  position  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards Card[]
+
+  @@map("columns")
+}
+
+model Card {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  columnId    String
+  boardId     String
+  creatorId   String
+  assigneeId  String?
+  position    Int
+  priority    Priority    @default(MEDIUM)
+  urgency     Urgency     @default(NOT_URGENT)
+  highImpact  Boolean     @default(false)
+  isProject   Boolean     @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  lecomTicket String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  column    Column        @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  board     Board         @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  creator   User          @relation("CardCreator", fields: [creatorId], references: [id])
+  assignee  User?         @relation("CardAssignee", fields: [assigneeId], references: [id])
+  checklist ChecklistItem[]
+  history   CardHistory[]
+  project   Project?
+
+  @@map("cards")
+}
+
+model ChecklistItem {
+  id          String   @id @default(cuid())
+  cardId      String
+  title       String
+  completed   Boolean  @default(false)
+  position    Int
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  card     Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  parent   ChecklistItem?  @relation("ChecklistHierarchy", fields: [parentId], references: [id])
+  children ChecklistItem[] @relation("ChecklistHierarchy")
+
+  @@map("checklist_items")
+}
+
+model CardHistory {
+  id        String   @id @default(cuid())
+  cardId    String
+  userId    String
+  action    String
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("card_history")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  cardId      String   @unique
+  canvas      Json?    // Business Model Canvas data
+  mvpCanvas   Json?    // MVP Canvas data
+  timeline    Json?    // Gantt timeline data
+  methodology ProjectMethodology @default(AGILE)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  card          Card                  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  collaborators ProjectCollaborator[]
+
+  @@map("projects")
+}
+
+model ProjectCollaborator {
+  id        String @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(COLLABORATOR)
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_collaborators")
+}
+
+enum UserRole {
+  ADMIN
+  TEAM_LEADER
+  MEMBER
+}
+
+enum TeamRole {
+  LEADER
+  MEMBER
+}
+
+enum BoardRole {
+  ADMIN
+  MEMBER
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Urgency {
+  URGENT
+  NOT_URGENT
+}
+
+enum ProjectMethodology {
+  AGILE
+  LEAN_STARTUP
+  DESIGN_THINKING
+  PMI
+}
+
+enum ProjectRole {
+  OWNER
+  COLLABORATOR
+}
