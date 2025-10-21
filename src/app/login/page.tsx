@@ -44,8 +44,9 @@ export default function LoginPage() {
         console.log('Frontend: Executing redirect now')
         console.log('Frontend: Current location:', window.location.href)
         
-        // Usar window.location.replace para forçar redirecionamento completo
-        window.location.replace('/dashboard')
+        // Redirecionamento para dashboard principal
+        console.log('Frontend: Redirecting to dashboard')
+        window.location.href = '/dashboard'
       } else {
         const data = await response.json()
         console.log('Frontend: Login failed', data)
