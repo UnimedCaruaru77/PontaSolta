@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   BarChart3, 
   Clock, 
@@ -9,7 +10,11 @@ import {
   Users, 
   TrendingUp,
   Calendar,
-  Filter
+  Filter,
+  Plus,
+  FolderPlus,
+  Kanban,
+  FileText
 } from 'lucide-react'
 
 interface DashboardStats {
@@ -35,6 +40,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
     totalCards: 0,
     inProgress: 0,
@@ -47,6 +53,23 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Funções de navegação
+  const handleCreateCard = () => {
+    router.push('/kanban')
+  }
+
+  const handleNewProject = () => {
+    router.push('/projects')
+  }
+
+  const handleViewKanban = () => {
+    router.push('/kanban')
+  }
+
+  const handleReports = () => {
+    router.push('/reports')
+  }
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -335,16 +358,32 @@ export default function DashboardPage() {
       <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
         <h2 className="text-xl font-semibold text-dark-50 mb-4">Ações Rápidas</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <button className="btn-primary justify-center">
+          <button 
+            onClick={handleCreateCard}
+            className="btn-primary justify-center"
+          >
+            <Plus className="w-4 h-4 mr-2" />
             Criar Card
           </button>
-          <button className="btn-secondary justify-center">
+          <button 
+            onClick={handleNewProject}
+            className="btn-secondary justify-center"
+          >
+            <FolderPlus className="w-4 h-4 mr-2" />
             Novo Projeto
           </button>
-          <button className="btn-secondary justify-center">
+          <button 
+            onClick={handleViewKanban}
+            className="btn-secondary justify-center"
+          >
+            <Kanban className="w-4 h-4 mr-2" />
             Ver Kanban
           </button>
-          <button className="btn-secondary justify-center">
+          <button 
+            onClick={handleReports}
+            className="btn-secondary justify-center"
+          >
+            <FileText className="w-4 h-4 mr-2" />
             Relatórios
           </button>
         </div>

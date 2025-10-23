@@ -266,20 +266,17 @@ function KanbanContent() {
     }
 
     const handleCreateCard = async (columnId: string) => {
-        const statusMap: { [key: string]: string } = {
-            'backlog': 'BACKLOG',
-            'in_progress': 'IN_PROGRESS',
-            'review': 'REVIEW',
-            'done': 'DONE'
-        }
-
-        const status = statusMap[columnId]
-        if (!status) return
-
         const title = prompt('Digite o título do card:')
         if (!title) return
 
         try {
+            console.log('Creating card with:', {
+                title,
+                boardId: selectedBoard,
+                columnId,
+                creatorId: user?.id || 'user_1'
+            })
+
             const response = await fetch('/api/cards', {
                 method: 'POST',
                 headers: {
@@ -288,8 +285,8 @@ function KanbanContent() {
                 body: JSON.stringify({
                     title,
                     boardId: selectedBoard,
-                    creatorId: user?.id || '1',
-                    status,
+                    columnId,
+                    creatorId: user?.id || 'user_1',
                     position: 0
                 })
             })
@@ -396,7 +393,10 @@ function KanbanContent() {
                         <Filter className="w-4 h-4 mr-2" />
                         Filtros
                     </button>
-                    <button className="btn-primary">
+                    <button 
+                        onClick={() => handleCreateCard('backlog')}
+                        className="btn-primary"
+                    >
                         <Plus className="w-4 h-4 mr-2" />
                         Novo Card
                     </button>

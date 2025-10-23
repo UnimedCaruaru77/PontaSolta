@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!
-)
+import { supabase } from '@/lib/supabase'
 
 // GET /api/cards - Buscar cards por board
 export async function GET(request: NextRequest) {
@@ -42,6 +37,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Creating card with data:', body)
+    
     const {
       title,
       description,
@@ -55,34 +52,38 @@ export async function POST(request: NextRequest) {
       endDate,
       lecomTicket,
       boardId,
-      status,
+      columnId,
       position
     } = body
 
-    if (!title || !boardId || !creatorId) {
+    if (!title || !boardId || !creatorId || !columnId) {
       return NextResponse.json({ 
-        error: 'Título, Board ID e Creator ID são obrigatórios' 
+        error: 'Título, Board ID, Creator ID e Column ID são obrigatórios' 
       }, { status: 400 })
     }
 
+    const cardData = {
+      title,
+      description: description || null,
+      priority: priority || 'MEDIUM',
+      urgency: urgency || 'NOT_URGENT',
+      high_impact: highImpact || false,
+      is_project: isProject || false,
+      assignee_id: assigneeId || null,
+      creator_id: creatorId,
+      start_date: startDate || null,
+      end_date: endDate || null,
+      lecom_ticket: lecomTicket || null,
+      board_id: boardId,
+      column_id: columnId,
+      position: position || 0
+    }
+
+    console.log('Inserting card data:', cardData)
+
     const { data: card, error } = await supabase
       .from('cards')
-      .insert({
-        title,
-        description,
-        priority: priority || 'MEDIUM',
-        urgency: urgency || 'NOT_URGENT',
-        high_impact: highImpact || false,
-        is_project: isProject || false,
-        assignee_id: assigneeId,
-        creator_id: creatorId,
-        start_date: startDate,
-        end_date: endDate,
-        lecom_ticket: lecomTicket,
-        board_id: boardId,
-        status: status || 'BACKLOG',
-        position: position || 0
-      })
+      .insert(cardData)
       .select(`
         *,
         assignee:assignee_id(id, name, email),
@@ -92,9 +93,10 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Erro ao criar card:', error)
-      return NextResponse.json({ error: 'Erro ao criar card' }, { status: 500 })
+      return NextResponse.json({ error: `Erro ao criar card: ${error.message}` }, { status: 500 })
     }
 
+    console.log('Card created successfully:', card)
     return NextResponse.json({ card }, { status: 201 })
   } catch (error) {
     console.error('Erro interno:', error)
