@@ -12,22 +12,24 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar se há um token JWT no localStorage
+    // Verificar se há dados do usuário no localStorage
     const token = localStorage.getItem('token')
+    const userData = localStorage.getItem('user')
     
-    if (token) {
+    if (token && userData) {
       try {
-        // Decodificar o JWT para obter informações do usuário
-        const payload = JSON.parse(atob(token.split('.')[1]))
+        // Usar dados do usuário salvos diretamente
+        const user = JSON.parse(userData)
         setUser({
-          id: payload.userId,
-          name: payload.name,
-          email: payload.email,
-          role: payload.role
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
         })
       } catch (error) {
-        console.error('Erro ao decodificar token:', error)
+        console.error('Erro ao carregar dados do usuário:', error)
         localStorage.removeItem('token')
+        localStorage.removeItem('user')
       }
     }
     
@@ -36,6 +38,7 @@ export function useAuth() {
 
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setUser(null)
     window.location.href = '/login'
   }
