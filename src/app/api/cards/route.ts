@@ -62,7 +62,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Gerar ID único para o card
+    const cardId = `card_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
     const cardData = {
+      id: cardId,
       title,
       description: description || null,
       priority: priority || 'MEDIUM',

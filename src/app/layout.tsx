@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 
 export const metadata: Metadata = {
   title: "PONTA SOLTA - Controle de Demandas & Gestão de Projetos",
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="antialiased">
-        {children}
+        <AuthenticatedLayout>
+          {children}
+        </AuthenticatedLayout>
       </body>
     </html>
   );
