@@ -50,109 +50,34 @@ export default function TeamsPage() {
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showMemberModal, setShowMemberModal] = useState(false)
 
-  // Dados mockados
+  // Buscar dados reais da API
   useEffect(() => {
-    setTimeout(() => {
-      const mockTeams: Team[] = [
-        {
-          id: '1',
-          name: 'Service Desk Operadora',
-          description: 'Equipe responsável pelo atendimento de primeiro nível aos usuários internos e externos',
-          members: [
-            {
-              id: '1',
-              name: 'Luciano Filho',
-              email: 'luciano.filho@unimedcaruaru.com.br',
-              role: 'LEADER',
-              sector: 'TI',
-              branch: 'Matriz',
-              phone: '(87) 99999-9999',
-              joinedAt: '2024-01-15',
-              isActive: true
-            },
-            {
-              id: '2',
-              name: 'Edwa Favre',
-              email: 'edwa.favre@hospitalunimedcaruaru.com.br',
-              role: 'MEMBER',
-              sector: 'TI',
-              branch: 'Hospital',
-              phone: '(87) 88888-8888',
-              joinedAt: '2024-02-01',
-              isActive: true
-            }
-          ],
-          createdAt: '2024-01-10',
-          isActive: true
-        },
-        {
-          id: '2',
-          name: 'NTI Lideranças',
-          description: 'Núcleo de Tecnologia da Informação - Equipe de lideranças estratégicas',
-          members: [
-            {
-              id: '1',
-              name: 'Luciano Filho',
-              email: 'luciano.filho@unimedcaruaru.com.br',
-              role: 'LEADER',
-              sector: 'TI',
-              branch: 'Matriz',
-              phone: '(87) 99999-9999',
-              joinedAt: '2024-01-10',
-              isActive: true
-            },
-            {
-              id: '3',
-              name: 'Marcos Barreto',
-              email: 'marcos.barreto@unimedcaruaru.com.br',
-              role: 'MEMBER',
-              sector: 'TI',
-              branch: 'Matriz',
-              phone: '(87) 77777-7777',
-              joinedAt: '2024-01-20',
-              isActive: true
-            }
-          ],
-          createdAt: '2024-01-10',
-          isActive: true
-        },
-        {
-          id: '3',
-          name: 'Desenvolvimento',
-          description: 'Equipe de desenvolvimento de sistemas e aplicações',
-          parentTeamId: '2',
-          parentTeamName: 'NTI Lideranças',
-          members: [
-            {
-              id: '4',
-              name: 'Ana Silva',
-              email: 'ana.silva@unimedcaruaru.com.br',
-              role: 'LEADER',
-              sector: 'TI',
-              branch: 'Matriz',
-              phone: '(87) 66666-6666',
-              joinedAt: '2024-02-01',
-              isActive: true
-            },
-            {
-              id: '5',
-              name: 'João Santos',
-              email: 'joao.santos@unimedcaruaru.com.br',
-              role: 'MEMBER',
-              sector: 'TI',
-              branch: 'Matriz',
-              phone: '(87) 55555-5555',
-              joinedAt: '2024-02-15',
-              isActive: true
-            }
-          ],
-          createdAt: '2024-02-01',
-          isActive: true
+    const fetchTeams = async () => {
+      try {
+        const response = await fetch('/api/teams')
+        if (!response.ok) {
+          throw new Error('Erro ao carregar equipes')
         }
-      ]
-      setTeams(mockTeams)
-      setLoading(false)
-    }, 1000)
+        
+        const data = await response.json()
+        // Mapear dados para o formato esperado pela interface
+        const teamsWithMembers = data.teams?.map((team: any) => ({
+          ...team,
+          members: [], // Por enquanto, sem membros detalhados
+          isActive: true,
+          createdAt: team.created_at
+        })) || []
+        
+        setTeams(teamsWithMembers)
+      } catch (error) {
+        console.error('Erro ao carregar equipes:', error)
+        setTeams([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTeams()
   }, [])
 
   const filteredTeams = teams.filter(team =>

@@ -51,70 +51,27 @@ export default function ProjectsPage() {
   const [filterMethodology, setFilterMethodology] = useState<string>('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
-  // Dados mockados
+  // Buscar dados reais da API
   useEffect(() => {
-    setTimeout(() => {
-      const mockProjects: Project[] = [
-        {
-          id: '1',
-          title: 'Implementação do novo ERP',
-          description: 'Projeto estratégico para modernização dos sistemas da empresa com foco em integração e automação de processos.',
-          methodology: 'PMI',
-          status: 'IN_PROGRESS',
-          progress: 35,
-          startDate: '2024-10-01',
-          endDate: '2025-03-01',
-          team: 'NTI Lideranças',
-          owner: { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
-          collaborators: [
-            { id: '2', name: 'Marcos Barreto', role: 'Gerente de Projeto' },
-            { id: '3', name: 'Edwa Favre', role: 'Desenvolvedor' }
-          ],
-          priority: 'HIGH',
-          budget: 150000,
-          createdAt: '2024-09-15'
-        },
-        {
-          id: '2',
-          title: 'Portal do Paciente Mobile',
-          description: 'Desenvolvimento de aplicativo mobile para acesso dos pacientes aos serviços da Unimed.',
-          methodology: 'AGILE',
-          status: 'PLANNING',
-          progress: 10,
-          startDate: '2024-11-01',
-          endDate: '2025-02-01',
-          team: 'Desenvolvimento',
-          owner: { id: '3', name: 'Marcos Barreto', email: 'marcos.barreto@unimed.com' },
-          collaborators: [
-            { id: '4', name: 'Ana Silva', role: 'UX Designer' },
-            { id: '5', name: 'João Santos', role: 'Desenvolvedor Mobile' }
-          ],
-          priority: 'MEDIUM',
-          budget: 80000,
-          createdAt: '2024-10-10'
-        },
-        {
-          id: '3',
-          title: 'Automação de Processos RH',
-          description: 'Implementação de workflows automatizados para processos de recursos humanos.',
-          methodology: 'LEAN_STARTUP',
-          status: 'REVIEW',
-          progress: 85,
-          startDate: '2024-08-01',
-          endDate: '2024-12-01',
-          team: 'Service Desk Operadora',
-          owner: { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
-          collaborators: [
-            { id: '6', name: 'Maria Costa', role: 'Analista de Processos' }
-          ],
-          priority: 'LOW',
-          createdAt: '2024-07-20'
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch(`/api/projects?status=${filterStatus}`)
+        if (!response.ok) {
+          throw new Error('Erro ao carregar projetos')
         }
-      ]
-      setProjects(mockProjects)
-      setLoading(false)
-    }, 1000)
-  }, [])
+        
+        const data = await response.json()
+        setProjects(data.projects || [])
+      } catch (error) {
+        console.error('Erro ao carregar projetos:', error)
+        setProjects([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProjects()
+  }, [filterStatus])
 
   const getStatusLabel = (status: string) => {
     switch (status) {

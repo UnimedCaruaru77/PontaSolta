@@ -34,40 +34,27 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('30')
   const [selectedTeam, setSelectedTeam] = useState('all')
 
-  // Dados mockados para demonstração
+  // Buscar dados reais da API
   useEffect(() => {
-    setTimeout(() => {
-      const mockData: ReportData = {
-        cardsByStatus: [
-          { name: 'Backlog', value: 15, color: '#64748b' },
-          { name: 'Em Andamento', value: 8, color: '#22d3ee' },
-          { name: 'Em Revisão', value: 5, color: '#8b5cf6' },
-          { name: 'Concluído', value: 32, color: '#10b981' }
-        ],
-        cardsByPriority: [
-          { name: 'Alta', value: 12, color: '#ef4444' },
-          { name: 'Média', value: 28, color: '#fb923c' },
-          { name: 'Baixa', value: 20, color: '#10b981' }
-        ],
-        teamPerformance: [
-          { team: 'Service Desk Operadora', completed: 18, total: 25, percentage: 72 },
-          { team: 'NTI Lideranças', completed: 12, total: 15, percentage: 80 },
-          { team: 'Desenvolvimento', completed: 8, total: 12, percentage: 67 }
-        ],
-        monthlyTrend: [
-          { month: 'Jul', created: 15, completed: 12 },
-          { month: 'Ago', created: 22, completed: 18 },
-          { month: 'Set', created: 28, completed: 25 },
-          { month: 'Out', created: 35, completed: 30 }
-        ],
-        overdueCards: 7,
-        avgCompletionTime: 4.2,
-        totalCards: 60,
-        completionRate: 78
+    const fetchReportData = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch(`/api/reports?dateRange=${dateRange}&team=${selectedTeam}`)
+        if (!response.ok) {
+          throw new Error('Erro ao carregar relatórios')
+        }
+        
+        const data = await response.json()
+        setReportData(data.reportData)
+      } catch (error) {
+        console.error('Erro ao carregar relatórios:', error)
+        setReportData(null)
+      } finally {
+        setLoading(false)
       }
-      setReportData(mockData)
-      setLoading(false)
-    }, 1000)
+    }
+
+    fetchReportData()
   }, [dateRange, selectedTeam])
 
   const StatCard = ({ 
