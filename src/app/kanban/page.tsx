@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core'
 import { Plus, Filter, Search } from 'lucide-react'
@@ -47,7 +47,7 @@ interface Board {
     columns: Column[]
 }
 
-export default function KanbanPage() {
+function KanbanContent() {
     const { user } = useAuth()
     const searchParams = useSearchParams()
     const teamId = searchParams.get('team')
@@ -443,5 +443,30 @@ export default function KanbanPage() {
                 />
             )}
         </div>
+    )
+}
+
+export default function KanbanPage() {
+    return (
+        <Suspense fallback={
+            <div className="p-6">
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-dark-700 rounded w-1/4"></div>
+                    <div className="grid grid-cols-4 gap-6">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="space-y-3">
+                                <div className="h-6 bg-dark-700 rounded"></div>
+                                <div className="space-y-2">
+                                    <div className="h-24 bg-dark-700 rounded"></div>
+                                    <div className="h-24 bg-dark-700 rounded"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        }>
+            <KanbanContent />
+        </Suspense>
     )
 }

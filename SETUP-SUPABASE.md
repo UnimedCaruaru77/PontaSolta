@@ -8,7 +8,7 @@
 ### 2. Execute o SQL para Criar as Tabelas
 1. No painel do Supabase, vá em **SQL Editor**
 2. Clique em **New Query**
-3. Copie e cole todo o conteúdo do arquivo `create-tables.sql`
+3. Copie e cole todo o conteúdo do arquivo `create-supabase-tables.sql`
 4. Clique em **Run** para executar
 
 ### 3. Popule os Dados Iniciais
@@ -17,16 +17,10 @@ No terminal, execute:
 node populate-supabase.js
 ```
 
-### 4. Inicie a Aplicação
-```bash
-npm run dev
-```
-
-### 5. Teste a Integração
-1. Acesse http://localhost:3001
+### 4. Teste a Aplicação em Produção
+1. Acesse: https://pontasolta-2ndtp3zih-unimed-caruarus-projects.vercel.app
 2. Faça login com: `luciano.filho@unimedcaruaru.com.br` / `Mudar@123`
-3. Verifique o status do Supabase na sidebar (deve estar verde)
-4. Clique em "Testar Supabase" para verificar a integração
+3. Teste as funcionalidades do Kanban
 
 ## ✅ Verificação
 
@@ -40,9 +34,10 @@ npm run dev
   - etc.
 
 ### Na Aplicação
-- Status "Supabase conectado" (verde) na sidebar
-- Dados carregando corretamente nas páginas
-- Funcionalidades real-time funcionando
+- Login funcionando
+- Dashboard carregando dados
+- Kanban com cards funcionais
+- Drag & drop operacional
 
 ## 🔧 Troubleshooting
 
@@ -52,11 +47,16 @@ npm run dev
 
 ### Erro de Conexão
 - Verifique se o projeto Supabase está ativo
-- Confirme as credenciais no arquivo .env
+- Confirme as credenciais nas variáveis de ambiente da Vercel
 
 ### Dados Não Aparecem
 - Execute: `node populate-supabase.js`
 - Verifique as políticas RLS no Supabase
+
+### Funcionalidades Não Funcionam
+- Verifique se as tabelas têm a estrutura correta
+- Confirme se os dados foram inseridos
+- Teste as APIs individualmente
 
 ---
 
@@ -64,3 +64,4 @@ npm run dev
 - **Projeto:** mawuqulusiqdvgeyirpr
 - **URL:** https://mawuqulusiqdvgeyirpr.supabase.co
 - **Região:** South America (São Paulo)
+- **Deploy:** https://pontasolta-2ndtp3zih-unimed-caruarus-projects.vercel.app

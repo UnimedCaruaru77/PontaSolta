@@ -43,25 +43,25 @@ export async function GET(request: NextRequest) {
           id: 'backlog',
           name: 'Backlog',
           position: 0,
-          cards: board.cards?.filter((card: any) => card.status === 'BACKLOG') || []
+          cards: board.cards?.filter((card: { status: string }) => card.status === 'BACKLOG') || []
         },
         {
           id: 'in_progress',
           name: 'Em Andamento',
           position: 1,
-          cards: board.cards?.filter((card: any) => card.status === 'IN_PROGRESS') || []
+          cards: board.cards?.filter((card: { status: string }) => card.status === 'IN_PROGRESS') || []
         },
         {
           id: 'review',
           name: 'Em Revisão',
           position: 2,
-          cards: board.cards?.filter((card: any) => card.status === 'REVIEW') || []
+          cards: board.cards?.filter((card: { status: string }) => card.status === 'REVIEW') || []
         },
         {
           id: 'done',
           name: 'Concluído',
           position: 3,
-          cards: board.cards?.filter((card: any) => card.status === 'DONE') || []
+          cards: board.cards?.filter((card: { status: string }) => card.status === 'DONE') || []
         }
       ]
 

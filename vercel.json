@@ -2,12 +2,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install",
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "NEXTAUTH_SECRET": "@nextauth-secret",
-    "DATABASE_URL": "@database-url",
-    "DIRECT_URL": "@direct-url"
-  }
+  "installCommand": "npm install"
 }

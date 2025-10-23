@@ -115,3 +115,4 @@ populate-supabase.js
 reset-and-populate.js
 create-tables.sql
 test-connection.js
+.vercel
