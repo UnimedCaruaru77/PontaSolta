@@ -45,60 +45,30 @@ export default function MySpacePage() {
   const [activeTab, setActiveTab] = useState<'my-tasks' | 'delegated'>('my-tasks')
   const [filter, setFilter] = useState<'all' | 'overdue' | 'today' | 'week'>('all')
 
-  // Dados mockados
+  // Buscar dados reais da API
   useEffect(() => {
-    setTimeout(() => {
-      const mockMyCards: Card[] = [
-        {
-          id: '1',
-          title: 'Configurar novo computador',
-          description: 'Instalar sistema operacional e programas básicos',
-          priority: 'MEDIUM',
-          urgency: 'NOT_URGENT',
-          highImpact: false,
-          isProject: false,
-          creator: { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
-          endDate: '2024-11-01',
-          status: 'Backlog',
-          boardName: 'Service Desk Operadora'
-        },
-        {
-          id: '2',
-          title: 'Problema crítico no servidor de email',
-          description: 'Usuários não conseguem enviar emails',
-          priority: 'HIGH',
-          urgency: 'URGENT',
-          highImpact: true,
-          isProject: false,
-          creator: { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
-          endDate: '2024-10-22',
-          lecomTicket: 'LECOM-12345',
-          status: 'Em Andamento',
-          boardName: 'Service Desk Operadora'
+    const fetchMyCards = async () => {
+      try {
+        const response = await fetch(`/api/users/me/cards?filter=${filter}`)
+        if (!response.ok) {
+          throw new Error('Erro ao carregar cards')
         }
-      ]
+        
+        const data = await response.json()
+        setMyCards(data.myCards || [])
+        setDelegatedCards(data.delegatedCards || [])
+      } catch (error) {
+        console.error('Erro ao carregar meus cards:', error)
+        // Em caso de erro, manter arrays vazios
+        setMyCards([])
+        setDelegatedCards([])
+      } finally {
+        setLoading(false)
+      }
+    }
 
-      const mockDelegatedCards: Card[] = [
-        {
-          id: '3',
-          title: 'Backup do servidor principal',
-          description: 'Backup semanal realizado com sucesso',
-          priority: 'LOW',
-          urgency: 'NOT_URGENT',
-          highImpact: false,
-          isProject: false,
-          assignee: { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
-          creator: { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
-          status: 'Concluído',
-          boardName: 'Service Desk Operadora'
-        }
-      ]
-
-      setMyCards(mockMyCards)
-      setDelegatedCards(mockDelegatedCards)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    fetchMyCards()
+  }, [filter])
 
   const filterCards = (cards: Card[]) => {
     const now = new Date()

@@ -83,28 +83,6 @@ export default function DashboardPage() {
       } catch (err) {
         console.error('Erro ao carregar dashboard:', err)
         setError('Erro ao carregar dados do dashboard')
-        // Fallback para dados mockados em caso de erro
-        setStats({
-          totalCards: 24,
-          inProgress: 8,
-          overdue: 3,
-          completed: 13,
-          highPriority: 5,
-          urgent: 2,
-          recentActivity: [
-            {
-              id: '1',
-              title: 'Card "Configurar servidor" foi concluído',
-              status: 'DONE',
-              updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-              creator: { name: 'Luciano Filho' }
-            }
-          ],
-          teamPerformance: [
-            { name: 'Service Desk Operadora', performance: 85, completedCards: 17, totalCards: 20 },
-            { name: 'NTI Lideranças', performance: 72, completedCards: 13, totalCards: 18 }
-          ]
-        })
       } finally {
         setLoading(false)
       }

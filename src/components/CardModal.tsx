@@ -56,11 +56,7 @@ interface CardModalProps {
 
 export default function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
   const [formData, setFormData] = useState<Card>(card)
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([
-    { id: '1', title: 'Instalar Windows 11', completed: false, position: 0 },
-    { id: '2', title: 'Instalar Office 365', completed: true, position: 1 },
-    { id: '3', title: 'Configurar acesso à rede', completed: false, position: 2 },
-  ])
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const [showLecomForm, setShowLecomForm] = useState(false)
   const [lecomData, setLecomData] = useState({
@@ -73,6 +69,23 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
 
   useEffect(() => {
     setFormData(card)
+    
+    // Carregar checklist do card
+    const fetchChecklist = async () => {
+      try {
+        const response = await fetch(`/api/cards/${card.id}/checklist`)
+        if (response.ok) {
+          const data = await response.json()
+          setChecklist(data.checklist || [])
+        }
+      } catch (error) {
+        console.error('Erro ao carregar checklist:', error)
+      }
+    }
+
+    if (card.id) {
+      fetchChecklist()
+    }
   }, [card])
 
   if (!isOpen) return null
@@ -81,22 +94,58 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
     onSave(formData)
   }
 
-  const handleChecklistToggle = (itemId: string) => {
-    setChecklist(prev => prev.map(item =>
-      item.id === itemId ? { ...item, completed: !item.completed } : item
-    ))
+  const handleChecklistToggle = async (itemId: string) => {
+    const item = checklist.find(i => i.id === itemId)
+    if (!item) return
+
+    try {
+      const response = await fetch(`/api/checklist/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: !item.completed })
+      })
+
+      if (response.ok) {
+        setChecklist(prev => prev.map(i =>
+          i.id === itemId ? { ...i, completed: !i.completed } : i
+        ))
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar checklist:', error)
+    }
   }
 
-  const handleAddChecklistItem = () => {
-    if (newChecklistItem.trim()) {
-      const newItem: ChecklistItem = {
-        id: Date.now().toString(),
-        title: newChecklistItem.trim(),
-        completed: false,
-        position: checklist.length
+  const handleAddChecklistItem = async () => {
+    if (!newChecklistItem.trim()) return
+
+    try {
+      const response = await fetch(`/api/cards/${card.id}/checklist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newChecklistItem.trim() })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setChecklist(prev => [...prev, data.item])
+        setNewChecklistItem('')
       }
-      setChecklist(prev => [...prev, newItem])
-      setNewChecklistItem('')
+    } catch (error) {
+      console.error('Erro ao adicionar item ao checklist:', error)
+    }
+  }
+
+  const handleDeleteChecklistItem = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/checklist/${itemId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setChecklist(prev => prev.filter(item => item.id !== itemId))
+      }
+    } catch (error) {
+      console.error('Erro ao deletar item do checklist:', error)
     }
   }
 
@@ -178,7 +227,10 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
                     }`}>
                       {item.title}
                     </span>
-                    <button className="p-1 hover:bg-dark-600 rounded text-dark-500 hover:text-accent-red">
+                    <button 
+                      onClick={() => handleDeleteChecklistItem(item.id)}
+                      className="p-1 hover:bg-dark-600 rounded text-dark-500 hover:text-accent-red"
+                    >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
