@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServerClient as supabase } from '@/lib/supabase-simple'
 
 // GET /api/boards - Buscar boards por equipe
 export async function GET(request: NextRequest) {
