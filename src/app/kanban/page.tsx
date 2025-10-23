@@ -394,7 +394,12 @@ function KanbanContent() {
                         Filtros
                     </button>
                     <button 
-                        onClick={() => handleCreateCard('backlog')}
+                        onClick={() => {
+                            const firstColumn = currentBoard?.columns[0]
+                            if (firstColumn) {
+                                handleCreateCard(firstColumn.id)
+                            }
+                        }}
                         className="btn-primary"
                     >
                         <Plus className="w-4 h-4 mr-2" />

@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!
-)
+import { supabase } from '@/lib/supabase'
 
 // GET /api/boards - Buscar boards por equipe
 export async function GET(request: NextRequest) {
@@ -12,64 +7,68 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const teamId = searchParams.get('teamId')
 
-    let query = supabase
+    let boardQuery = supabase
       .from('boards')
       .select(`
         *,
-        team:team_id(id, name),
-        cards(
-          *,
-          assignee:assignee_id(id, name, email),
-          creator:creator_id(id, name, email)
-        )
+        team:team_id(id, name)
       `)
       .order('created_at')
 
     if (teamId) {
-      query = query.eq('team_id', teamId)
+      boardQuery = boardQuery.eq('team_id', teamId)
     }
 
-    const { data: boards, error } = await query
+    const { data: boards, error: boardsError } = await boardQuery
 
-    if (error) {
-      console.error('Erro ao buscar boards:', error)
+    if (boardsError) {
+      console.error('Erro ao buscar boards:', boardsError)
       return NextResponse.json({ error: 'Erro ao buscar boards' }, { status: 500 })
     }
 
-    // Organizar cards por status para criar colunas
-    const boardsWithColumns = boards?.map(board => {
-      const columns = [
-        {
-          id: 'backlog',
-          name: 'Backlog',
-          position: 0,
-          cards: board.cards?.filter((card: { status: string }) => card.status === 'BACKLOG') || []
-        },
-        {
-          id: 'in_progress',
-          name: 'Em Andamento',
-          position: 1,
-          cards: board.cards?.filter((card: { status: string }) => card.status === 'IN_PROGRESS') || []
-        },
-        {
-          id: 'review',
-          name: 'Em Revisão',
-          position: 2,
-          cards: board.cards?.filter((card: { status: string }) => card.status === 'REVIEW') || []
-        },
-        {
-          id: 'done',
-          name: 'Concluído',
-          position: 3,
-          cards: board.cards?.filter((card: { status: string }) => card.status === 'DONE') || []
-        }
-      ]
+    // Buscar colunas e cards para cada board
+    const boardsWithColumns = await Promise.all(
+      boards?.map(async (board) => {
+        // Buscar colunas do board
+        const { data: columns, error: columnsError } = await supabase
+          .from('columns')
+          .select('*')
+          .eq('board_id', board.id)
+          .order('position')
 
-      return {
-        ...board,
-        columns
-      }
-    })
+        if (columnsError) {
+          console.error('Erro ao buscar colunas:', columnsError)
+          return { ...board, columns: [] }
+        }
+
+        // Buscar cards para cada coluna
+        const columnsWithCards = await Promise.all(
+          columns?.map(async (column) => {
+            const { data: cards, error: cardsError } = await supabase
+              .from('cards')
+              .select(`
+                *,
+                assignee:assignee_id(id, name, email),
+                creator:creator_id(id, name, email)
+              `)
+              .eq('column_id', column.id)
+              .order('position')
+
+            if (cardsError) {
+              console.error('Erro ao buscar cards:', cardsError)
+              return { ...column, cards: [] }
+            }
+
+            return { ...column, cards: cards || [] }
+          }) || []
+        )
+
+        return {
+          ...board,
+          columns: columnsWithCards
+        }
+      }) || []
+    )
 
     return NextResponse.json({ boards: boardsWithColumns })
   } catch (error) {
