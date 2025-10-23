@@ -17,7 +17,6 @@ import {
   ChevronRight
 } from 'lucide-react'
 import SupabaseStatus from './SupabaseStatus'
-import SupabaseTest from './SupabaseTest'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -89,9 +88,8 @@ export default function Sidebar() {
       <div className="p-4 border-t border-dark-700">
         {/* Supabase Status */}
         {!collapsed && (
-          <div className="mb-3 p-2 bg-dark-700 rounded-lg space-y-2">
+          <div className="mb-3 p-2 bg-dark-700 rounded-lg">
             <SupabaseStatus />
-            <SupabaseTest />
           </div>
         )}
         

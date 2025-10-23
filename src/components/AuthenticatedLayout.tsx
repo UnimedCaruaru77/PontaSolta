@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 
@@ -12,35 +12,47 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
   const router = useRouter()
   const pathname = usePathname()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Páginas que não precisam de autenticação
-  const publicPages = ['/login', '/']
+  const publicPages = useMemo(() => ['/login', '/'], [])
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem('token')
-      
-      if (!token && !publicPages.includes(pathname)) {
-        router.push('/login')
-        return
+      try {
+        const token = localStorage.getItem('token')
+        const isPublicPage = publicPages.includes(pathname)
+        
+        if (!token && !isPublicPage) {
+          router.push('/login')
+          return
+        }
+        
+        setIsAuthenticated(!!token)
+      } catch (error) {
+        console.error('Auth check error:', error)
+        setIsAuthenticated(false)
+      } finally {
+        setIsLoading(false)
       }
-      
-      setIsAuthenticated(!!token)
     }
 
-    checkAuth()
-  }, [pathname, router])
+    // Pequeno delay para evitar flash de conteúdo
+    const timer = setTimeout(checkAuth, 100)
+    
+    return () => clearTimeout(timer)
+  }, [pathname, router, publicPages])
 
   // Mostrar loading enquanto verifica autenticação
-  if (isAuthenticated === null) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-500"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
       </div>
     )
   }
 
-  // Se não está autenticado e não é página pública, não renderizar nada (redirecionamento já foi feito)
+  // Se não está autenticado e não é página pública, não renderizar nada
   if (!isAuthenticated && !publicPages.includes(pathname)) {
     return null
   }
