@@ -62,20 +62,45 @@ export default function KanbanCard({ card, onClick, isDragging = false }: Kanban
   const priorityClass = getCardPriorityClass(card.priority, card.urgency, card.highImpact)
   const overdue = card.endDate ? isOverdue(card.endDate) : false
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Prevenir click durante drag
+    if (isSortableDragging) return
+    
+    e.stopPropagation()
+    onClick()
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      onClick={onClick}
       className={cn(
-        'card-kanban group cursor-pointer select-none',
+        'card-kanban group select-none relative',
         priorityClass,
         isDragging || isSortableDragging ? 'opacity-50 rotate-3 scale-105' : '',
         overdue ? 'border-accent-red' : ''
       )}
     >
+      {/* Drag Handle - área específica para drag */}
+      <div
+        {...listeners}
+        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Arrastar card"
+      >
+        <div className="w-3 h-3 grid grid-cols-2 gap-0.5">
+          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
+        </div>
+      </div>
+
+      {/* Área clicável para abrir modal */}
+      <div
+        onClick={handleClick}
+        className="cursor-pointer p-4"
+      >
       {/* Card Header */}
       <div className="flex items-start justify-between mb-3">
         <h4 className="font-medium text-dark-50 text-sm leading-tight flex-1 pr-2">
@@ -150,6 +175,7 @@ export default function KanbanCard({ card, onClick, isDragging = false }: Kanban
           <span>Vencido</span>
         </div>
       )}
+      </div>
     </div>
   )
 }

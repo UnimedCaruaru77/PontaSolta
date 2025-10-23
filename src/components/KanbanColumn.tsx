@@ -78,6 +78,7 @@ export default function KanbanColumn({ column, onCardClick, onCreateCard }: Kanb
       <div
         ref={setNodeRef}
         className="flex-1 p-4 space-y-3 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto"
+        data-column-id={column.id}
       >
         <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
           {column.cards.map(card => (
@@ -89,20 +90,33 @@ export default function KanbanColumn({ column, onCardClick, onCreateCard }: Kanb
           ))}
         </SortableContext>
         
-        {column.cards.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-dark-500">
-            <div className="w-12 h-12 bg-dark-700 rounded-lg flex items-center justify-center mb-3">
-              <Plus className="w-6 h-6" />
+        {/* Área de drop sempre visível */}
+        <div className="min-h-[50px] flex items-center justify-center">
+          {column.cards.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-dark-500">
+              <div className="w-12 h-12 bg-dark-700 rounded-lg flex items-center justify-center mb-3">
+                <Plus className="w-6 h-6" />
+              </div>
+              <p className="text-sm">Nenhum card nesta coluna</p>
+              <button
+                onClick={() => onCreateCard(column.id)}
+                className="text-xs text-primary-500 hover:text-primary-400 mt-1"
+              >
+                Adicionar primeiro card
+              </button>
             </div>
-            <p className="text-sm">Nenhum card nesta coluna</p>
-            <button
-              onClick={() => onCreateCard(column.id)}
-              className="text-xs text-primary-500 hover:text-primary-400 mt-1"
-            >
-              Adicionar primeiro card
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="w-full h-8 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => onCreateCard(column.id)}
+                className="text-xs text-primary-500 hover:text-primary-400 flex items-center space-x-1"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Adicionar card</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

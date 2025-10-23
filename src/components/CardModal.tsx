@@ -155,6 +155,20 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
     setShowLecomForm(false)
   }
 
+  const handleAssigneeChange = (assigneeId: string) => {
+    // Implementar mudança de responsável
+    console.log('Alterar responsável para:', assigneeId)
+    // Aqui você buscaria os dados do usuário e atualizaria o formData
+    setFormData(prev => ({
+      ...prev,
+      assignee: assigneeId ? {
+        id: assigneeId,
+        name: 'Nome do Usuário', // Buscar do backend
+        email: 'email@exemplo.com' // Buscar do backend
+      } : undefined
+    }))
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-dark-800 border border-dark-700 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -444,7 +458,11 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
 
                 <div>
                   <label className="block text-xs text-dark-400 mb-1">Responsável</label>
-                  <select className="input-field w-full">
+                  <select 
+                    value={formData.assignee?.id || ''}
+                    onChange={(e) => handleAssigneeChange(e.target.value)}
+                    className="input-field w-full"
+                  >
                     <option value="">Selecionar responsável</option>
                     <option value="1">Luciano Filho</option>
                     <option value="2">Edwa Favre</option>

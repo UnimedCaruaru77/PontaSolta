@@ -34,6 +34,26 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('30')
   const [selectedTeam, setSelectedTeam] = useState('all')
 
+  const handleExport = () => {
+    // Implementar exportação de relatórios
+    console.log('Exportar relatórios')
+  }
+
+  const handleCustomReport = () => {
+    // Implementar criação de relatório personalizado
+    console.log('Criar relatório personalizado')
+  }
+
+  const handleMoreFilters = () => {
+    // Implementar filtros avançados
+    console.log('Abrir filtros avançados')
+  }
+
+  const handleViewDetails = () => {
+    // Implementar visualização de detalhes
+    console.log('Ver detalhes do relatório')
+  }
+
   // Buscar dados reais da API
   useEffect(() => {
     const fetchReportData = async () => {
@@ -160,11 +180,11 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="btn-secondary">
+          <button onClick={handleExport} className="btn-secondary">
             <Download className="w-4 h-4 mr-2" />
             Exportar
           </button>
-          <button className="btn-primary">
+          <button onClick={handleCustomReport} className="btn-primary">
             <BarChart3 className="w-4 h-4 mr-2" />
             Relatório Personalizado
           </button>
@@ -203,7 +223,7 @@ export default function ReportsPage() {
           </select>
         </div>
 
-        <button className="btn-secondary ml-auto">
+        <button onClick={handleMoreFilters} className="btn-secondary ml-auto">
           <Filter className="w-4 h-4 mr-2" />
           Mais Filtros
         </button>
@@ -322,7 +342,7 @@ export default function ReportsPage() {
         title="Performance das Equipes"
         actions={
           <div className="flex items-center space-x-2">
-            <button className="btn-secondary text-sm px-3 py-1">
+            <button onClick={handleViewDetails} className="btn-secondary text-sm px-3 py-1">
               Ver Detalhes
             </button>
           </div>

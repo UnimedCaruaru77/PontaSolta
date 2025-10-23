@@ -51,6 +51,26 @@ export default function ProjectsPage() {
   const [filterMethodology, setFilterMethodology] = useState<string>('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
+  const handleNewProject = () => {
+    // Implementar modal de criação de projeto
+    console.log('Criar novo projeto')
+  }
+
+  const handleMoreFilters = () => {
+    // Implementar modal de filtros avançados
+    console.log('Abrir filtros avançados')
+  }
+
+  const handleEditProject = (project: Project) => {
+    // Implementar edição de projeto
+    console.log('Editar projeto:', project.id)
+  }
+
+  const handleCreateFirstProject = () => {
+    // Implementar criação do primeiro projeto
+    console.log('Criar primeiro projeto')
+  }
+
   // Buscar dados reais da API
   useEffect(() => {
     const fetchProjects = async () => {
@@ -215,7 +235,10 @@ export default function ProjectsPage() {
           <Eye className="w-3 h-3 mr-1" />
           Ver Detalhes
         </button>
-        <button className="btn-secondary text-sm px-3 py-1">
+        <button 
+          onClick={() => handleEditProject(project)}
+          className="btn-secondary text-sm px-3 py-1"
+        >
           <Edit className="w-3 h-3 mr-1" />
           Editar
         </button>
@@ -266,7 +289,7 @@ export default function ProjectsPage() {
             Gerencie e acompanhe todos os projetos da organização
           </p>
         </div>
-        <button className="btn-primary">
+        <button onClick={handleNewProject} className="btn-primary">
           <Plus className="w-4 h-4 mr-2" />
           Novo Projeto
         </button>
@@ -339,7 +362,7 @@ export default function ProjectsPage() {
           </select>
         </div>
 
-        <button className="btn-secondary">
+        <button onClick={handleMoreFilters} className="btn-secondary">
           <Filter className="w-4 h-4 mr-2" />
           Mais Filtros
         </button>
@@ -386,7 +409,7 @@ export default function ProjectsPage() {
                 : 'Comece criando seu primeiro projeto.'
               }
             </p>
-            <button className="btn-primary">
+            <button onClick={handleCreateFirstProject} className="btn-primary">
               <Plus className="w-4 h-4 mr-2" />
               Criar Primeiro Projeto
             </button>

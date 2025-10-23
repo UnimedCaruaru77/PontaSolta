@@ -71,6 +71,11 @@ export default function DashboardPage() {
     router.push('/reports')
   }
 
+  const handleFilters = () => {
+    // Implementar modal de filtros avançados
+    console.log('Abrir filtros avançados')
+  }
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -135,11 +140,11 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="btn-secondary">
+          <button onClick={handleFilters} className="btn-secondary">
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </button>
-          <button className="btn-primary">
+          <button onClick={handleReports} className="btn-primary">
             <BarChart3 className="w-4 h-4 mr-2" />
             Relatórios
           </button>

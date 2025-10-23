@@ -185,14 +185,37 @@ function KanbanContent() {
         if (!over) return
 
         const cardId = active.id as string
-        const targetColumnId = over.id as string
+        let targetColumnId = over.id as string
 
         console.log('Drag end:', { cardId, targetColumnId })
 
-        // Verificar se a coluna de destino existe
-        const targetColumn = currentBoard?.columns.find(col => col.id === targetColumnId)
+        // Se o drop foi sobre um card, encontrar a coluna desse card
+        let targetColumn = currentBoard?.columns.find(col => col.id === targetColumnId)
+        
+        if (!targetColumn) {
+            // Se não encontrou a coluna diretamente, pode ser que o drop foi sobre um card
+            // Vamos procurar em qual coluna está o card de destino
+            for (const board of boards) {
+                for (const column of board.columns) {
+                    if (column.cards.some(card => card.id === targetColumnId)) {
+                        targetColumnId = column.id
+                        targetColumn = column
+                        break
+                    }
+                }
+                if (targetColumn) break
+            }
+        }
+
         if (!targetColumn) {
             console.error('Coluna de destino não encontrada:', targetColumnId)
+            return
+        }
+
+        // Verificar se o card já está na coluna de destino
+        const sourceCard = findCard(cardId)
+        if (sourceCard && sourceCard.columnId === targetColumnId) {
+            console.log('Card já está na coluna de destino')
             return
         }
 
@@ -261,6 +284,11 @@ function KanbanContent() {
     const handleCardClick = (card: Card) => {
         setSelectedCard(card)
         setIsCardModalOpen(true)
+    }
+
+    const handleFilters = () => {
+        // Implementar modal de filtros avançados
+        console.log('Abrir filtros avançados do Kanban')
     }
 
     const handleCreateCard = async (columnId: string) => {
@@ -387,7 +415,7 @@ function KanbanContent() {
                             className="input-field pl-10 w-64"
                         />
                     </div>
-                    <button className="btn-secondary">
+                    <button onClick={handleFilters} className="btn-secondary">
                         <Filter className="w-4 h-4 mr-2" />
                         Filtros
                     </button>

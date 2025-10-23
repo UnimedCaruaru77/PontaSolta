@@ -45,6 +45,21 @@ export default function MySpacePage() {
   const [activeTab, setActiveTab] = useState<'my-tasks' | 'delegated'>('my-tasks')
   const [filter, setFilter] = useState<'all' | 'overdue' | 'today' | 'week'>('all')
 
+  const handleNewCard = () => {
+    // Implementar criação de novo card
+    window.location.href = '/kanban'
+  }
+
+  const handleFilters = () => {
+    // Implementar filtros avançados
+    console.log('Abrir filtros avançados')
+  }
+
+  const handleCreateNewTask = () => {
+    // Implementar criação de nova tarefa
+    window.location.href = '/kanban'
+  }
+
   // Buscar dados reais da API
   useEffect(() => {
     const fetchMyCards = async () => {
@@ -191,7 +206,7 @@ export default function MySpacePage() {
             Suas tarefas e delegações em um só lugar
           </p>
         </div>
-        <button className="btn-primary">
+        <button onClick={handleNewCard} className="btn-primary">
           <Plus className="w-4 h-4 mr-2" />
           Novo Card
         </button>
@@ -263,7 +278,7 @@ export default function MySpacePage() {
             <option value="today">Hoje</option>
             <option value="week">Esta Semana</option>
           </select>
-          <button className="btn-secondary">
+          <button onClick={handleFilters} className="btn-secondary">
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </button>
@@ -308,7 +323,7 @@ export default function MySpacePage() {
                 : 'Nenhuma tarefa corresponde aos filtros selecionados.'
               }
             </p>
-            <button className="btn-primary">
+            <button onClick={handleCreateNewTask} className="btn-primary">
               <Plus className="w-4 h-4 mr-2" />
               Criar Nova Tarefa
             </button>

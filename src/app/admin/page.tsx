@@ -49,6 +49,23 @@ export default function AdminPage() {
   const [showUserModal, setShowUserModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
+  const handleNewUser = () => {
+    // Implementar criação de novo usuário
+    setShowUserModal(true)
+  }
+
+  const handleFilters = () => {
+    // Implementar filtros avançados
+    console.log('Abrir filtros avançados')
+  }
+
+  const handleSaveUser = () => {
+    // Implementar salvamento de usuário
+    console.log('Salvar usuário')
+    setShowUserModal(false)
+    setSelectedUser(null)
+  }
+
   // Dados mockados
   useEffect(() => {
     setTimeout(() => {
@@ -279,7 +296,7 @@ export default function AdminPage() {
           >
             Cancelar
           </button>
-          <button className="btn-primary">
+          <button onClick={handleSaveUser} className="btn-primary">
             {selectedUser ? 'Salvar Alterações' : 'Criar Usuário'}
           </button>
         </div>
@@ -298,7 +315,7 @@ export default function AdminPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowUserModal(true)}
+          onClick={handleNewUser}
           className="btn-primary"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -355,7 +372,7 @@ export default function AdminPage() {
             className="input-field pl-10 w-80"
           />
         </div>
-        <button className="btn-secondary">
+        <button onClick={handleFilters} className="btn-secondary">
           <Filter className="w-4 h-4 mr-2" />
           Filtros
         </button>

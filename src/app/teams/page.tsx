@@ -50,6 +50,33 @@ export default function TeamsPage() {
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showMemberModal, setShowMemberModal] = useState(false)
 
+  const handleNewTeam = () => {
+    // Implementar modal de criação de equipe
+    console.log('Criar nova equipe')
+    setShowTeamModal(true)
+  }
+
+  const handleFilters = () => {
+    // Implementar modal de filtros avançados
+    console.log('Abrir filtros avançados')
+  }
+
+  const handleTeamActions = (team: Team) => {
+    // Implementar menu de ações da equipe
+    console.log('Ações da equipe:', team.id)
+  }
+
+  const handleMemberActions = (memberId: string) => {
+    // Implementar menu de ações do membro
+    console.log('Ações do membro:', memberId)
+  }
+
+  const handleCreateFirstTeam = () => {
+    // Implementar criação da primeira equipe
+    console.log('Criar primeira equipe')
+    setShowTeamModal(true)
+  }
+
   // Buscar dados reais da API
   useEffect(() => {
     const fetchTeams = async () => {
@@ -117,7 +144,10 @@ export default function TeamsPage() {
             >
               <Users className="w-4 h-4" />
             </button>
-            <button className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-dark-200 transition-colors">
+            <button 
+              onClick={() => handleTeamActions(team)}
+              className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-dark-200 transition-colors"
+            >
               <MoreHorizontal className="w-4 h-4" />
             </button>
           </div>
@@ -243,7 +273,10 @@ export default function TeamsPage() {
                         <p className="text-sm text-dark-400">{member.role === 'LEADER' ? 'Líder' : 'Membro'}</p>
                       </div>
                     </div>
-                    <button className="p-1 hover:bg-dark-600 rounded text-dark-400 hover:text-dark-200">
+                    <button 
+                      onClick={() => handleMemberActions(member.id)}
+                      className="p-1 hover:bg-dark-600 rounded text-dark-400 hover:text-dark-200"
+                    >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </div>
@@ -288,7 +321,7 @@ export default function TeamsPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowTeamModal(true)}
+          onClick={handleNewTeam}
           className="btn-primary"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -308,7 +341,7 @@ export default function TeamsPage() {
             className="input-field pl-10 w-80"
           />
         </div>
-        <button className="btn-secondary">
+        <button onClick={handleFilters} className="btn-secondary">
           <Filter className="w-4 h-4 mr-2" />
           Filtros
         </button>
@@ -357,7 +390,7 @@ export default function TeamsPage() {
               }
             </p>
             <button
-              onClick={() => setShowTeamModal(true)}
+              onClick={handleCreateFirstTeam}
               className="btn-primary"
             >
               <Plus className="w-4 h-4 mr-2" />
