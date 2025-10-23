@@ -33,8 +33,23 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    window.location.href = '/login'
+    try {
+      // Limpar localStorage
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      
+      // Chamar API de logout para limpar cookies
+      await fetch('/api/auth/logout', { method: 'POST' })
+      
+      // Redirecionar para login
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Erro no logout:', error)
+      // Mesmo com erro, limpar dados locais e redirecionar
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+    }
   }
 
   return (

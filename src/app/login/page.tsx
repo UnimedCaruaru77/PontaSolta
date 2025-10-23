@@ -35,18 +35,16 @@ export default function LoginPage() {
         const data = await response.json()
         console.log('Frontend: Login successful, redirecting to dashboard', data)
         
-        // Verificar se o cookie foi definido
-        console.log('Frontend: Document cookies:', document.cookie)
+        // Salvar token no localStorage para compatibilidade com AuthenticatedLayout
+        if (data.user) {
+          localStorage.setItem('token', 'authenticated')
+          localStorage.setItem('user', JSON.stringify(data.user))
+        }
         
-        // Aguardar um pouco para o cookie ser processado
-        await new Promise(resolve => setTimeout(resolve, 500))
+        console.log('Frontend: Token saved, redirecting to dashboard')
         
-        console.log('Frontend: Executing redirect now')
-        console.log('Frontend: Current location:', window.location.href)
-        
-        // Redirecionamento para dashboard principal
-        console.log('Frontend: Redirecting to dashboard')
-        window.location.href = '/dashboard'
+        // Redirecionamento usando router
+        router.push('/dashboard')
       } else {
         const data = await response.json()
         console.log('Frontend: Login failed', data)

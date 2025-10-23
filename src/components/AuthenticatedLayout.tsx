@@ -23,8 +23,21 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
         const token = localStorage.getItem('token')
         const isPublicPage = publicPages.includes(pathname)
         
+        console.log('AuthenticatedLayout: Checking auth', { 
+          token: !!token, 
+          pathname, 
+          isPublicPage 
+        })
+        
         if (!token && !isPublicPage) {
+          console.log('AuthenticatedLayout: No token, redirecting to login')
           router.push('/login')
+          return
+        }
+        
+        if (token && pathname === '/login') {
+          console.log('AuthenticatedLayout: Has token but on login page, redirecting to dashboard')
+          router.push('/dashboard')
           return
         }
         
@@ -37,10 +50,12 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
       }
     }
 
-    // Pequeno delay para evitar flash de conteúdo
-    const timer = setTimeout(checkAuth, 100)
-    
-    return () => clearTimeout(timer)
+    // Verificar imediatamente se estamos no cliente
+    if (typeof window !== 'undefined') {
+      checkAuth()
+    } else {
+      setIsLoading(false)
+    }
   }, [pathname, router, publicPages])
 
   // Mostrar loading enquanto verifica autenticação
