@@ -185,28 +185,26 @@ function KanbanContent() {
         if (!over) return
 
         const cardId = active.id as string
-        const overId = over.id as string
+        const targetColumnId = over.id as string
 
-        // Mapear IDs das colunas para status
-        const statusMap: { [key: string]: string } = {
-            'backlog': 'BACKLOG',
-            'in_progress': 'IN_PROGRESS',
-            'review': 'REVIEW',
-            'done': 'DONE'
+        console.log('Drag end:', { cardId, targetColumnId })
+
+        // Verificar se a coluna de destino existe
+        const targetColumn = currentBoard?.columns.find(col => col.id === targetColumnId)
+        if (!targetColumn) {
+            console.error('Coluna de destino não encontrada:', targetColumnId)
+            return
         }
 
-        const newStatus = statusMap[overId]
-        if (!newStatus) return
-
         try {
-            // Atualizar no backend
+            // Atualizar no backend - usar column_id em vez de status
             const response = await fetch(`/api/cards/${cardId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    status: newStatus
+                    column_id: targetColumnId
                 })
             })
 
@@ -225,13 +223,13 @@ function KanbanContent() {
                     }))
 
                     // Encontrar a coluna de destino e adicionar o card
-                    const targetColumnIndex = updatedColumns.findIndex(col => col.id === overId)
+                    const targetColumnIndex = updatedColumns.findIndex(col => col.id === targetColumnId)
                     if (targetColumnIndex !== -1) {
                         const card = findCard(cardId)
                         if (card) {
                             updatedColumns[targetColumnIndex].cards.push({
                                 ...card,
-                                columnId: overId
+                                columnId: targetColumnId
                             })
                         }
                     }
@@ -243,7 +241,7 @@ function KanbanContent() {
                 })
             )
 
-            console.log(`Card ${cardId} movido para ${newStatus}`)
+            console.log(`Card ${cardId} movido para coluna ${targetColumnId}`)
         } catch (error) {
             console.error('Erro ao mover card:', error)
             // Aqui você poderia mostrar uma notificação de erro

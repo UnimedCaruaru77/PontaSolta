@@ -48,8 +48,11 @@ export async function PUT(
       endDate,
       lecomTicket,
       status,
-      position
+      position,
+      column_id
     } = body
+
+    console.log('Updating card with data:', body)
 
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
@@ -64,6 +67,7 @@ export async function PUT(
     if (lecomTicket !== undefined) updateData.lecom_ticket = lecomTicket
     if (status !== undefined) updateData.status = status
     if (position !== undefined) updateData.position = position
+    if (column_id !== undefined) updateData.column_id = column_id
 
     const { data: card, error } = await supabase
       .from('cards')
