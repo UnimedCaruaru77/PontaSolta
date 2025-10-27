@@ -18,6 +18,8 @@ import {
   Calendar,
   X
 } from 'lucide-react'
+import CreateTeamModal from '@/components/CreateTeamModal'
+import { useToast } from '@/components/ToastContainer'
 
 interface TeamMember {
   id: string
@@ -49,6 +51,7 @@ export default function TeamsPage() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showMemberModal, setShowMemberModal] = useState(false)
+  const { showSuccess } = useToast()
 
   const handleNewTeam = () => {
     // Implementar modal de criação de equipe
@@ -72,9 +75,12 @@ export default function TeamsPage() {
   }
 
   const handleCreateFirstTeam = () => {
-    // Implementar criação da primeira equipe
-    console.log('Criar primeira equipe')
     setShowTeamModal(true)
+  }
+
+  const handleTeamCreated = (newTeam: Team) => {
+    setTeams(prev => [newTeam, ...prev])
+    showSuccess('Equipe criada com sucesso!')
   }
 
   // Buscar dados reais da API
@@ -402,6 +408,13 @@ export default function TeamsPage() {
 
       {/* Team Detail Modal */}
       {selectedTeam && !showMemberModal && <TeamDetailModal />}
+
+      {/* Create Team Modal */}
+      <CreateTeamModal
+        isOpen={showTeamModal}
+        onClose={() => setShowTeamModal(false)}
+        onSuccess={handleTeamCreated}
+      />
     </div>
   )
 }

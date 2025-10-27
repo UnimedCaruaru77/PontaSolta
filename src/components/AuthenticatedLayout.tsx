@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
+import { ToastProvider } from './ToastContainer'
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode
@@ -74,16 +75,22 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
 
   // Se é página pública, renderizar sem sidebar
   if (publicPages.includes(pathname)) {
-    return <>{children}</>
+    return (
+      <ToastProvider>
+        {children}
+      </ToastProvider>
+    )
   }
 
   // Se está autenticado, renderizar com sidebar
   return (
-    <div className="flex h-screen bg-slate-900">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-    </div>
+    <ToastProvider>
+      <div className="flex h-screen bg-slate-900">
+        <Sidebar />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </ToastProvider>
   )
 }

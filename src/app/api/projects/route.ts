@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     const columnId = columns?.[0]?.id || 'col_1'
 
     // Gerar ID único para o card
-    const cardId = `card_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const cardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
 
     // Criar card do projeto
     const { data: card, error: cardError } = await supabase
@@ -146,9 +146,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar entrada na tabela de projetos
-    const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const projectId = `project_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
     
-    const { data: project, error: projectError } = await supabase
+    const { error: projectError } = await supabase
       .from('projects')
       .insert({
         id: projectId,
@@ -156,7 +156,6 @@ export async function POST(request: NextRequest) {
         methodology,
         notes: description
       })
-      .select()
       .single()
 
     if (projectError) {

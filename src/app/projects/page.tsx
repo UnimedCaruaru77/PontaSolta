@@ -17,6 +17,8 @@ import {
   AlertTriangle,
   Target
 } from 'lucide-react'
+import CreateProjectModal from '@/components/CreateProjectModal'
+import { useToast } from '@/components/ToastContainer'
 
 interface Project {
   id: string
@@ -50,10 +52,11 @@ export default function ProjectsPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterMethodology, setFilterMethodology] = useState<string>('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const { showSuccess } = useToast()
 
   const handleNewProject = () => {
-    // Implementar modal de criação de projeto
-    console.log('Criar novo projeto')
+    setShowCreateModal(true)
   }
 
   const handleMoreFilters = () => {
@@ -67,8 +70,12 @@ export default function ProjectsPage() {
   }
 
   const handleCreateFirstProject = () => {
-    // Implementar criação do primeiro projeto
-    console.log('Criar primeiro projeto')
+    setShowCreateModal(true)
+  }
+
+  const handleProjectCreated = (newProject: Project) => {
+    setProjects(prev => [newProject, ...prev])
+    showSuccess('Projeto criado com sucesso!')
   }
 
   // Buscar dados reais da API
@@ -416,6 +423,13 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleProjectCreated}
+      />
     </div>
   )
 }

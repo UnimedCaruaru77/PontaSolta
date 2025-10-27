@@ -14,6 +14,8 @@ import {
   Trash2,
   Save
 } from 'lucide-react'
+import { useToast } from './ToastContainer'
+import { ButtonSpinner } from './LoadingSpinner'
 
 interface Card {
   id: string
@@ -55,10 +57,12 @@ interface CardModalProps {
 }
 
 export default function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
+  const { showSuccess, showError } = useToast()
   const [formData, setFormData] = useState<Card>(card)
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const [showLecomForm, setShowLecomForm] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [lecomData, setLecomData] = useState({
     categoria: '',
     filial: '',
@@ -90,8 +94,48 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
 
   if (!isOpen) return null
 
-  const handleSave = () => {
-    onSave(formData)
+  const handleSave = async () => {
+    setLoading(true)
+    
+    try {
+      const response = await fetch(`/api/cards/${card.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          priority: formData.priority,
+          urgency: formData.urgency,
+          highImpact: formData.highImpact,
+          isProject: formData.isProject,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          assigneeId: formData.assignee?.id
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao salvar card')
+      }
+
+      const data = await response.json()
+      
+      showSuccess('Card Atualizado!', 'As alterações foram salvas com sucesso')
+      
+      if (onSave) {
+        onSave(data.card)
+      }
+      
+      onClose()
+
+    } catch (error) {
+      console.error('Erro ao salvar card:', error)
+      showError('Erro ao Salvar', 'Ocorreu um erro ao salvar as alterações. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleChecklistToggle = async (itemId: string) => {
@@ -476,15 +520,18 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
             <div className="space-y-2">
               <button
                 onClick={handleSave}
-                className="btn-primary w-full justify-center"
+                disabled={loading}
+                className="btn-primary w-full justify-center disabled:opacity-50 flex items-center space-x-2"
               >
-                <Save className="w-4 h-4 mr-2" />
-                Salvar Alterações
+                {loading && <ButtonSpinner />}
+                <Save className="w-4 h-4" />
+                <span>{loading ? 'Salvando...' : 'Salvar Alterações'}</span>
               </button>
               
               <button
                 onClick={onClose}
-                className="btn-secondary w-full justify-center"
+                disabled={loading}
+                className="btn-secondary w-full justify-center disabled:opacity-50"
               >
                 Cancelar
               </button>
