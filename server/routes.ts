@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./localAuth";
 import { insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -11,48 +11,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        // Fallback to claims if user not in database (acceptable for dev/testing)
-        console.warn('[auth] User not found in database, using OIDC claims as fallback');
-        const fallbackUser = {
-          id: req.user.claims.sub,
-          email: req.user.claims.email,
-          firstName: req.user.claims.first_name,
-          lastName: req.user.claims.last_name,
-          profileImageUrl: req.user.claims.profile_image_url,
-          role: 'member',
-          teamId: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        return res.json(fallbackUser);
-      }
-      res.json(user);
-    } catch (error) {
-      // If DB fails completely, use OIDC claims (dev/testing fallback)
-      console.error("Error fetching user from database:", error.message);
-      console.warn('[auth] Database unavailable, using OIDC claims as fallback');
-      const fallbackUser = {
-        id: req.user.claims.sub,
-        email: req.user.claims.email,
-        firstName: req.user.claims.first_name,
-        lastName: req.user.claims.last_name,
-        profileImageUrl: req.user.claims.profile_image_url,
-        role: 'member',
-        teamId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      res.json(fallbackUser);
+      res.json(req.user);
+    } catch (error: any) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Erro ao buscar usuário" });
     }
   });
 
   // Dashboard stats
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const stats = await storage.getDashboardStats(userId);
       res.json(stats);
     } catch (error) {
@@ -64,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Tasks routes
   app.get('/api/tasks', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { assigneeId, creatorId, teamId, status } = req.query;
       
       const filters: any = {};
@@ -99,7 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/tasks', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const taskData = insertTaskSchema.parse({
         ...req.body,
         creatorId: userId,
@@ -130,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/tasks/:id', isAuthenticated, async (req: any, res) => {
     try {
       const taskId = req.params.id;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const updateData = req.body;
       
       // Get old task data for audit log
@@ -239,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/tasks/:taskId/comments', isAuthenticated, async (req: any, res) => {
     try {
       const taskId = req.params.taskId;
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const commentData = insertTaskCommentSchema.parse({
         ...req.body,
         taskId,
