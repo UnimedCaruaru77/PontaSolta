@@ -7,7 +7,9 @@ import { Plus, Filter, Search } from 'lucide-react'
 import KanbanColumn from '@/components/KanbanColumn'
 import KanbanCard from '@/components/KanbanCard'
 import CardModal from '@/components/CardModal'
+import AdvancedFiltersModal, { FilterOptions } from '@/components/AdvancedFiltersModal'
 import { useAuth } from '@/hooks/useAuth'
+import { FilterProvider, useFilters } from '@/hooks/useFilters'
 
 interface Card {
     id: string
@@ -59,6 +61,8 @@ function KanbanContent() {
     const [isCardModalOpen, setIsCardModalOpen] = useState(false)
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const [showFiltersModal, setShowFiltersModal] = useState(false)
+    const { filters, hasActiveFilters, getFilterSummary } = useFilters()
 
     useEffect(() => {
         const fetchBoards = async () => {
@@ -287,8 +291,11 @@ function KanbanContent() {
     }
 
     const handleFilters = () => {
-        // Implementar modal de filtros avançados
-        console.log('Abrir filtros avançados do Kanban')
+        setShowFiltersModal(true)
+    }
+
+    const handleApplyFilters = (newFilters: FilterOptions) => {
+        // Os filtros são aplicados automaticamente através do useFilters
     }
 
     const handleCreateCard = async (columnId: string) => {
@@ -358,10 +365,28 @@ function KanbanContent() {
 
     const filteredColumns = currentBoard?.columns.map(column => ({
         ...column,
-        cards: column.cards.filter(card =>
-            card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            card.description?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        cards: column.cards.filter(card => {
+            // Filtro por busca de texto
+            const matchesSearch = !searchTerm || 
+                card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                card.description?.toLowerCase().includes(searchTerm.toLowerCase())
+
+            // Filtros avançados
+            const matchesPriority = !filters.priority?.length || 
+                filters.priority.includes(card.priority)
+            
+            const matchesUrgency = !filters.urgency?.length || 
+                filters.urgency.includes(card.urgency)
+            
+            const matchesAssignee = !filters.assignees?.length || 
+                (card.assignee && filters.assignees.includes(card.assignee.id))
+            
+            const matchesCreator = !filters.creators?.length || 
+                filters.creators.includes(card.creator.id)
+
+            return matchesSearch && matchesPriority && matchesUrgency && 
+                   matchesAssignee && matchesCreator
+        })
     })) || []
 
     if (loading) {
@@ -415,9 +440,17 @@ function KanbanContent() {
                             className="input-field pl-10 w-64"
                         />
                     </div>
-                    <button onClick={handleFilters} className="btn-secondary">
+                    <button 
+                        onClick={handleFilters} 
+                        className={`btn-secondary ${hasActiveFilters ? 'bg-primary-500/10 border-primary-500/20 text-primary-400' : ''}`}
+                    >
                         <Filter className="w-4 h-4 mr-2" />
                         Filtros
+                        {hasActiveFilters && (
+                            <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                Ativo
+                            </span>
+                        )}
                     </button>
                     <button 
                         onClick={() => {
@@ -433,6 +466,25 @@ function KanbanContent() {
                     </button>
                 </div>
             </div>
+
+            {/* Resumo dos Filtros */}
+            {hasActiveFilters && (
+                <div className="bg-primary-500/10 border border-primary-500/20 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <Filter className="w-4 h-4 text-primary-500" />
+                            <span className="text-sm text-primary-400">Filtros ativos:</span>
+                            <span className="text-sm text-dark-300">{getFilterSummary()}</span>
+                        </div>
+                        <button
+                            onClick={() => setShowFiltersModal(true)}
+                            className="text-xs text-primary-400 hover:text-primary-300"
+                        >
+                            Editar
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Kanban Board */}
             <div className="flex-1 overflow-x-auto">
@@ -473,31 +525,41 @@ function KanbanContent() {
                     }}
                 />
             )}
+
+            {/* Advanced Filters Modal */}
+            <AdvancedFiltersModal
+                isOpen={showFiltersModal}
+                onClose={() => setShowFiltersModal(false)}
+                onApplyFilters={handleApplyFilters}
+                currentFilters={filters}
+            />
         </div>
     )
 }
 
 export default function KanbanPage() {
     return (
-        <Suspense fallback={
-            <div className="p-6">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-dark-700 rounded w-1/4"></div>
-                    <div className="grid grid-cols-4 gap-6">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="space-y-3">
-                                <div className="h-6 bg-dark-700 rounded"></div>
-                                <div className="space-y-2">
-                                    <div className="h-24 bg-dark-700 rounded"></div>
-                                    <div className="h-24 bg-dark-700 rounded"></div>
+        <FilterProvider>
+            <Suspense fallback={
+                <div className="p-6">
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-8 bg-dark-700 rounded w-1/4"></div>
+                        <div className="grid grid-cols-4 gap-6">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="space-y-3">
+                                    <div className="h-6 bg-dark-700 rounded"></div>
+                                    <div className="space-y-2">
+                                        <div className="h-24 bg-dark-700 rounded"></div>
+                                        <div className="h-24 bg-dark-700 rounded"></div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
-            </div>
-        }>
-            <KanbanContent />
-        </Suspense>
+            }>
+                <KanbanContent />
+            </Suspense>
+        </FilterProvider>
     )
 }

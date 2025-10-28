@@ -16,6 +16,7 @@ import {
   Kanban,
   FileText
 } from 'lucide-react'
+import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 
 interface DashboardStats {
   totalCards: number
@@ -71,9 +72,16 @@ export default function DashboardPage() {
     router.push('/reports')
   }
 
+  const [showFiltersModal, setShowFiltersModal] = useState(false)
+
   const handleFilters = () => {
-    // Implementar modal de filtros avançados
-    console.log('Abrir filtros avançados')
+    setShowFiltersModal(true)
+  }
+
+  const handleApplyFilters = (filters: any) => {
+    console.log('Filtros aplicados no Dashboard:', filters)
+    // Aqui você implementaria a lógica para filtrar os dados do dashboard
+    // Por exemplo, recarregar as estatísticas com os filtros aplicados
   }
 
   useEffect(() => {
@@ -371,6 +379,14 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Advanced Filters Modal */}
+      <AdvancedFiltersModal
+        isOpen={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        onApplyFilters={handleApplyFilters}
+        context="dashboard"
+      />
     </div>
   )
 }

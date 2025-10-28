@@ -18,7 +18,9 @@ import {
   Target
 } from 'lucide-react'
 import CreateProjectModal from '@/components/CreateProjectModal'
+import AdvancedFiltersModal, { FilterOptions } from '@/components/AdvancedFiltersModal'
 import { useToast } from '@/components/ToastContainer'
+import { FilterProvider, useFilters, useFilterParams } from '@/hooks/useFilters'
 
 interface Project {
   id: string
@@ -45,7 +47,7 @@ interface Project {
   createdAt: string
 }
 
-export default function ProjectsPage() {
+function ProjectsContent() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -53,15 +55,21 @@ export default function ProjectsPage() {
   const [filterMethodology, setFilterMethodology] = useState<string>('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showFiltersModal, setShowFiltersModal] = useState(false)
   const { showSuccess } = useToast()
+  const { filters, hasActiveFilters, getFilterSummary } = useFilters()
+  const { buildFilterParams } = useFilterParams()
 
   const handleNewProject = () => {
     setShowCreateModal(true)
   }
 
   const handleMoreFilters = () => {
-    // Implementar modal de filtros avançados
-    console.log('Abrir filtros avançados')
+    setShowFiltersModal(true)
+  }
+
+  const handleApplyFilters = (newFilters: FilterOptions) => {
+    // Os filtros são aplicados automaticamente através do useFilters
   }
 
   const handleEditProject = (project: Project) => {
@@ -81,8 +89,13 @@ export default function ProjectsPage() {
   // Buscar dados reais da API
   useEffect(() => {
     const fetchProjects = async () => {
+      setLoading(true)
       try {
-        const response = await fetch(`/api/projects?status=${filterStatus}`)
+        const filterParams = buildFilterParams()
+        const statusParam = filterStatus !== 'all' ? `&status=${filterStatus}` : ''
+        const url = `/api/projects?${filterParams}${statusParam}`
+        
+        const response = await fetch(url)
         if (!response.ok) {
           throw new Error('Erro ao carregar projetos')
         }
@@ -98,7 +111,7 @@ export default function ProjectsPage() {
     }
 
     fetchProjects()
-  }, [filterStatus])
+  }, [filterStatus, filters, buildFilterParams])
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -369,9 +382,17 @@ export default function ProjectsPage() {
           </select>
         </div>
 
-        <button onClick={handleMoreFilters} className="btn-secondary">
+        <button 
+          onClick={handleMoreFilters} 
+          className={`btn-secondary ${hasActiveFilters ? 'bg-primary-500/10 border-primary-500/20 text-primary-400' : ''}`}
+        >
           <Filter className="w-4 h-4 mr-2" />
           Mais Filtros
+          {hasActiveFilters && (
+            <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+              Ativo
+            </span>
+          )}
         </button>
       </div>
 
@@ -424,12 +445,55 @@ export default function ProjectsPage() {
         )}
       </div>
 
+      {/* Resumo dos Filtros */}
+      {hasActiveFilters && (
+        <div className="bg-primary-500/10 border border-primary-500/20 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-primary-500" />
+              <span className="text-sm text-primary-400">Filtros ativos:</span>
+              <span className="text-sm text-dark-300">{getFilterSummary()}</span>
+            </div>
+            <button
+              onClick={() => setShowFiltersModal(true)}
+              className="text-xs text-primary-400 hover:text-primary-300"
+            >
+              Editar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Create Project Modal */}
       <CreateProjectModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleProjectCreated}
       />
+
+      {/* Advanced Filters Modal */}
+      <AdvancedFiltersModal
+        isOpen={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        onApplyFilters={handleApplyFilters}
+        currentFilters={filters}
+        availableOptions={{
+          statuses: [
+            { value: 'PLANNING', label: 'Planejamento' },
+            { value: 'IN_PROGRESS', label: 'Em Andamento' },
+            { value: 'REVIEW', label: 'Em Revisão' },
+            { value: 'COMPLETED', label: 'Concluído' }
+          ]
+        }}
+      />
     </div>
+  )
+}
+
+export default function ProjectsPage() {
+  return (
+    <FilterProvider>
+      <ProjectsContent />
+    </FilterProvider>
   )
 }

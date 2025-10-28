@@ -16,6 +16,27 @@ import {
   Activity,
   MoreHorizontal
 } from 'lucide-react'
+import ExportModal from '@/components/ExportModal'
+import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
+import { useFilters } from '@/hooks/useFilters'
+
+interface FilterOptions {
+  dateRange: {
+    startDate: string
+    endDate: string
+    preset: 'custom' | 'today' | 'week' | 'month' | 'quarter' | 'year'
+  }
+  status: string[]
+  priority: string[]
+  urgency: string[]
+  teams: string[]
+  assignees: string[]
+  creators: string[]
+  tags: string[]
+  hasDeadline: boolean | null
+  isOverdue: boolean | null
+  isProject: boolean | null
+}
 
 interface ReportData {
   cardsByStatus: Array<{ name: string; value: number; color: string }>
@@ -28,15 +49,17 @@ interface ReportData {
   completionRate: number
 }
 
-export default function ReportsPage() {
+function ReportsContent() {
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('30')
   const [selectedTeam, setSelectedTeam] = useState('all')
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [showFiltersModal, setShowFiltersModal] = useState(false)
+  const { filters, hasActiveFilters } = useFilters({ data: [] })
 
   const handleExport = () => {
-    // Implementar exportação de relatórios
-    console.log('Exportar relatórios')
+    setShowExportModal(true)
   }
 
   const handleCustomReport = () => {
@@ -45,13 +68,16 @@ export default function ReportsPage() {
   }
 
   const handleMoreFilters = () => {
-    // Implementar filtros avançados
-    console.log('Abrir filtros avançados')
+    setShowFiltersModal(true)
   }
 
   const handleViewDetails = () => {
     // Implementar visualização de detalhes
     console.log('Ver detalhes do relatório')
+  }
+
+  const handleApplyFilters = (newFilters: FilterOptions) => {
+    // Os filtros são aplicados automaticamente através do useFilters
   }
 
   // Buscar dados reais da API
@@ -223,9 +249,17 @@ export default function ReportsPage() {
           </select>
         </div>
 
-        <button onClick={handleMoreFilters} className="btn-secondary ml-auto">
+        <button 
+          onClick={handleMoreFilters} 
+          className={`btn-secondary ml-auto ${hasActiveFilters ? 'bg-primary-500/10 border-primary-500/20 text-primary-400' : ''}`}
+        >
           <Filter className="w-4 h-4 mr-2" />
           Mais Filtros
+          {hasActiveFilters && (
+            <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+              Ativo
+            </span>
+          )}
         </button>
       </div>
 
@@ -421,6 +455,28 @@ export default function ReportsPage() {
           </div>
         )}
       </ChartCard>
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        context="reports"
+        data={[]}
+        title="Relatório de Dados"
+      />
+
+      {/* Advanced Filters Modal */}
+      <AdvancedFiltersModal
+        isOpen={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        onApplyFilters={handleApplyFilters}
+        context="reports"
+        currentFilters={filters}
+      />
     </div>
   )
+}
+
+export default function ReportsPage() {
+  return <ReportsContent />
 }
