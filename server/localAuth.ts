@@ -24,8 +24,13 @@ const registerSchema = z.object({
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   
+  // Detect if we're in production based on Replit domains
+  const isProduction = Boolean(process.env.REPL_SLUG || 
+                       process.env.REPLIT_DEPLOYMENT === '1' ||
+                       process.env.NODE_ENV === 'production');
+  
   let sessionStore;
-  if (process.env.NODE_ENV === 'development') {
+  if (!isProduction) {
     const MemStore = MemoryStore(session);
     sessionStore = new MemStore({
       checkPeriod: 86400000,
@@ -50,7 +55,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction, // Use secure cookies in production (HTTPS)
       sameSite: 'lax', // CSRF protection
       maxAge: sessionTtl,
     },

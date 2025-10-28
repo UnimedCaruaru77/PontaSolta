@@ -2,7 +2,33 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with features like Kanban boards, team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
-## Recent Changes (v2.3.0 - October 28, 2025)
+## Recent Changes (v2.4.0 - October 28, 2025)
+
+### 🔐 Authentication System Update
+1. **Replaced Replit OAuth with Traditional Email/Password Authentication**:
+   - Implemented Passport Local Strategy with bcrypt password hashing
+   - Added Zod validation for login and registration endpoints
+   - Created secure session management with httpOnly cookies
+   - **FIXED**: Production cookie configuration now detects Replit deployment correctly
+   - **FIXED**: Session store uses PostgreSQL in production for persistence across deploys
+
+2. **Security Enhancements**:
+   - Passwords hashed with bcrypt (10 rounds)
+   - Session cookies configured: httpOnly, secure (HTTPS), sameSite: lax
+   - CSRF protection via session middleware
+   - Input validation on all auth endpoints
+
+3. **Production Deployment Fix**:
+   - Auto-detection of production environment via REPL_SLUG and REPLIT_DEPLOYMENT env vars
+   - Proper cookie security for HTTPS in production deployments
+   - PostgreSQL session store for published apps
+
+### Admin Credentials
+- Email: `luciano.filho@unimedcaruaru.com.br`
+- Password: `admin123`
+- Role: admin
+
+## Previous Changes (v2.3.0 - October 28, 2025)
 
 ### ✅ Completed Features
 1. **Task Comments System**: Full CRUD for task comments with user attribution and timestamps

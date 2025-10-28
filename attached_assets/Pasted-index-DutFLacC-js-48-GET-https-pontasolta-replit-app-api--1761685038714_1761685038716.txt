@@ -1,0 +1,46 @@
+index-DutFLacC.js:48 
+            
+            
+           GET https://pontasolta.replit.app/api/auth/user 401 (Unauthorized)
+(anônimo) @ index-DutFLacC.js:48
+i @ index-DutFLacC.js:48
+b @ index-DutFLacC.js:48
+start @ index-DutFLacC.js:48
+fetch @ index-DutFLacC.js:48
+ia @ index-DutFLacC.js:48
+onSubscribe @ index-DutFLacC.js:48
+subscribe @ index-DutFLacC.js:48
+(anônimo) @ index-DutFLacC.js:48
+_1 @ index-DutFLacC.js:38
+Tu @ index-DutFLacC.js:40
+Qi @ index-DutFLacC.js:40
+Ag @ index-DutFLacC.js:40
+Ps @ index-DutFLacC.js:38
+r2 @ index-DutFLacC.js:40
+Fs @ index-DutFLacC.js:40
+nS @ index-DutFLacC.js:40
+_ @ index-DutFLacC.js:25
+O @ index-DutFLacC.js:25
+index.js:1 content loaded
+index.59b2ae62.js:3 Content Script: Initializing
+index-DutFLacC.js:218 
+            
+            
+           POST https://pontasolta.replit.app/api/auth/login 401 (Unauthorized)
+a @ index-DutFLacC.js:218
+bk @ index-DutFLacC.js:37
+Nk @ index-DutFLacC.js:37
+Ck @ index-DutFLacC.js:37
+tg @ index-DutFLacC.js:37
+c1 @ index-DutFLacC.js:37
+(anônimo) @ index-DutFLacC.js:37
+Ch @ index-DutFLacC.js:40
+Db @ index-DutFLacC.js:37
+jd @ index-DutFLacC.js:37
+Ym @ index-DutFLacC.js:37
+zk @ index-DutFLacC.js:37
+pontasolta.replit.app/:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+pontasolta.replit.app/:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+pontasolta.replit.app/:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+pontasolta.replit.app/:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+pontasolta.replit.app/:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
