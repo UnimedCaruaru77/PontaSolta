@@ -86,6 +86,17 @@ export const taskComments = pgTable("task_comments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const taskAuditLog = pgTable("task_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  action: varchar("action").notNull(), // created, updated, status_changed, assigned, etc.
+  field: varchar("field"), // field that changed (status, assignee, priority, etc.)
+  oldValue: text("old_value"), // JSON string of old value
+  newValue: text("new_value"), // JSON string of new value
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   team: one(teams, {
@@ -120,6 +131,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   }),
   subtasks: many(subtasks),
   comments: many(taskComments),
+  auditLogs: many(taskAuditLog),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
@@ -140,6 +152,17 @@ export const taskCommentsRelations = relations(taskComments, ({ one }) => ({
   }),
   user: one(users, {
     fields: [taskComments.userId],
+    references: [users.id],
+  }),
+}));
+
+export const taskAuditLogRelations = relations(taskAuditLog, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskAuditLog.taskId],
+    references: [tasks.id],
+  }),
+  user: one(users, {
+    fields: [taskAuditLog.userId],
     references: [users.id],
   }),
 }));
@@ -178,6 +201,13 @@ export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({
   createdAt: true,
 });
 
+export type TaskAuditLog = typeof taskAuditLog.$inferSelect;
+export type InsertTaskAuditLog = typeof taskAuditLog.$inferInsert;
+export const insertTaskAuditLogSchema = createInsertSchema(taskAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Extended types with relations
 export type TaskWithDetails = Task & {
   assignee?: User | null;
@@ -185,4 +215,5 @@ export type TaskWithDetails = Task & {
   team?: Team | null;
   subtasks: Subtask[];
   comments: (TaskComment & { user: User })[];
+  auditLogs?: (TaskAuditLog & { user: User })[];
 };

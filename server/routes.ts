@@ -106,6 +106,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const task = await storage.createTask(taskData);
+      
+      // Create audit log for task creation
+      await storage.createAuditLog({
+        taskId: task.id,
+        userId,
+        action: 'created',
+        field: null,
+        oldValue: null,
+        newValue: JSON.stringify(task),
+      });
+      
       res.status(201).json(task);
     } catch (error) {
       console.error("Error creating task:", error);
@@ -119,9 +130,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/tasks/:id', isAuthenticated, async (req: any, res) => {
     try {
       const taskId = req.params.id;
+      const userId = req.user.claims.sub;
       const updateData = req.body;
       
+      // Get old task data for audit log
+      const oldTask = await storage.getTask(taskId);
+      if (!oldTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Update task
       const task = await storage.updateTask(taskId, updateData);
+      
+      // Create audit logs for changed fields
+      const auditLogs = [];
+      for (const [field, newValue] of Object.entries(updateData)) {
+        const oldValue = (oldTask as any)[field];
+        if (oldValue !== newValue && field !== 'updatedAt') {
+          auditLogs.push(
+            storage.createAuditLog({
+              taskId,
+              userId,
+              action: 'updated',
+              field,
+              oldValue: oldValue ? JSON.stringify(oldValue) : null,
+              newValue: newValue ? JSON.stringify(newValue) : null,
+            })
+          );
+        }
+      }
+      await Promise.all(auditLogs);
+      
       res.json(task);
     } catch (error) {
       console.error("Error updating task:", error);
@@ -181,6 +220,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting subtask:", error);
       res.status(500).json({ message: "Failed to delete subtask" });
+    }
+  });
+
+  // Audit log routes
+  app.get('/api/tasks/:taskId/audit', isAuthenticated, async (req: any, res) => {
+    try {
+      const taskId = req.params.taskId;
+      const logs = await storage.getTaskAuditLogs(taskId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import TaskCard from "./task-card";
-import TaskDetailModal from "./task-detail-modal";
+import { TaskDetailsModal } from "./task-details-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -163,10 +163,10 @@ export default function KanbanBoard() {
         })}
       </div>
 
-      <TaskDetailModal
+      <TaskDetailsModal
         taskId={selectedTaskId}
         open={!!selectedTaskId}
-        onClose={() => setSelectedTaskId(null)}
+        onOpenChange={(open) => !open && setSelectedTaskId(null)}
       />
     </>
   );

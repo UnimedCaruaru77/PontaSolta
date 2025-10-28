@@ -4,6 +4,7 @@ import {
   tasks,
   subtasks,
   taskComments,
+  taskAuditLog,
   type User,
   type UpsertUser,
   type Task,
@@ -15,6 +16,8 @@ import {
   type InsertSubtask,
   type TaskComment,
   type InsertTaskComment,
+  type TaskAuditLog,
+  type InsertTaskAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql } from "drizzle-orm";
@@ -51,6 +54,10 @@ export interface IStorage {
   
   // Comment operations
   createComment(comment: InsertTaskComment): Promise<TaskComment>;
+  
+  // Audit log operations
+  createAuditLog(auditLog: InsertTaskAuditLog): Promise<TaskAuditLog>;
+  getTaskAuditLogs(taskId: string): Promise<(TaskAuditLog & { user: User })[]>;
   
   // Dashboard stats
   getDashboardStats(userId: string): Promise<{
@@ -297,6 +304,32 @@ export class DatabaseStorage implements IStorage {
       .values(comment)
       .returning();
     return newComment;
+  }
+
+  // Audit log operations
+  async createAuditLog(auditLog: InsertTaskAuditLog): Promise<TaskAuditLog> {
+    const [newAuditLog] = await db
+      .insert(taskAuditLog)
+      .values(auditLog)
+      .returning();
+    return newAuditLog;
+  }
+
+  async getTaskAuditLogs(taskId: string): Promise<(TaskAuditLog & { user: User })[]> {
+    const logsData = await db
+      .select({
+        log: taskAuditLog,
+        user: users,
+      })
+      .from(taskAuditLog)
+      .leftJoin(users, eq(taskAuditLog.userId, users.id))
+      .where(eq(taskAuditLog.taskId, taskId))
+      .orderBy(desc(taskAuditLog.createdAt));
+
+    return logsData.map(({ log, user }) => ({
+      ...log,
+      user: user!,
+    }));
   }
 
   // Dashboard stats
