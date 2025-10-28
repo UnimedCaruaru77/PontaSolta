@@ -152,11 +152,17 @@ export type InsertTeam = typeof teams.$inferInsert;
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertTaskSchema = createInsertSchema(tasks)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    startDate: z.coerce.date().optional(),
+    dueDate: z.coerce.date().optional(),
+    completedAt: z.coerce.date().optional(),
+  });
 
 export type Subtask = typeof subtasks.$inferSelect;
 export type InsertSubtask = typeof subtasks.$inferInsert;
