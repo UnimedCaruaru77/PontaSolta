@@ -14,7 +14,10 @@ export default function DeadlineNotifications() {
   const getUrgentTasks = () => {
     if (!tasks) return { overdue: [], today: [], thisWeek: [] };
     
+    // Normalize to start of day for accurate day comparison
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     const overdue: TaskWithDetails[] = [];
     const today: TaskWithDetails[] = [];
     const thisWeek: TaskWithDetails[] = [];
@@ -23,13 +26,17 @@ export default function DeadlineNotifications() {
       if (!task.dueDate || task.status === 'done') return;
       
       const dueDate = new Date(task.dueDate);
-      const daysUntilDue = differenceInDays(dueDate, now);
+      const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      const daysUntilDue = differenceInDays(dueDateStart, todayStart);
       
-      if (isPast(dueDate)) {
+      if (daysUntilDue < 0) {
+        // Due date is in the past
         overdue.push(task);
       } else if (daysUntilDue === 0) {
+        // Due date is today
         today.push(task);
       } else if (daysUntilDue > 0 && daysUntilDue <= 7) {
+        // Due date is within the next 7 days
         thisWeek.push(task);
       }
     });

@@ -2,6 +2,23 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with features like Kanban boards, team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
+## Recent Changes (v2.2.0 - October 28, 2025)
+
+### ✅ Completed Features
+1. **Task Comments System**: Full CRUD for task comments with user attribution and timestamps
+2. **Audit Log (Task History)**: Automatic tracking of task creation and field changes with visual timeline
+3. **Deadline Notifications**: Dashboard widget showing overdue, today, and upcoming tasks with color-coded sections
+
+### 🔧 Technical Improvements
+- Fixed date handling in task creation (ISO string conversion)
+- Improved date classification logic (day-level vs timestamp comparison)
+- Enhanced cache invalidation for Kanban drag-and-drop operations
+- Database cleanup of legacy epoch dates
+
+### ⚠️ Known Issues
+- Cache invalidation needs centralization for all task update paths (not just drag-and-drop)
+- Task details modal is read-only (status changes only via Kanban board)
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

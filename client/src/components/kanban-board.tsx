@@ -21,8 +21,10 @@ export default function KanbanBoard() {
       await apiRequest("PATCH", `/api/tasks/${id}`, data);
     },
     onSuccess: () => {
+      // Force refetch of all task-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.refetchQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Sucesso",
         description: "Tarefa movida com sucesso!",
