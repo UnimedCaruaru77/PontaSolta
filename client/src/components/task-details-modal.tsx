@@ -3,9 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TaskComments } from "./task-comments";
 import { TaskAuditLog } from "./task-audit-log";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Calendar, 
   User, 
@@ -28,10 +31,42 @@ interface TaskDetailsModalProps {
 }
 
 export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModalProps) {
+  const { toast } = useToast();
+  
   const { data: task, isLoading } = useQuery<TaskWithDetails>({
     queryKey: ["/api/tasks", taskId],
     enabled: !!taskId && open,
   });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string; status: string }) => {
+      await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
+    },
+    onSuccess: () => {
+      // Invalidate and refetch all task-related queries for real-time updates
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.refetchQueries({ queryKey: ["/api/tasks"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Sucesso",
+        description: "Status atualizado com sucesso!",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Falha ao atualizar status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStatusChange = (newStatus: string) => {
+    if (taskId) {
+      updateStatusMutation.mutate({ taskId, status: newStatus });
+    }
+  };
 
   if (!task && !isLoading) return null;
 
@@ -101,10 +136,25 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
               {/* Status and Priority */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-black/40 p-4 rounded border border-primary/20">
-                  <p className="text-xs text-gray-400 mb-1">Status</p>
-                  <Badge className="bg-primary/20 text-primary border-primary/50">
-                    {getStatusLabel(task.status)}
-                  </Badge>
+                  <p className="text-xs text-gray-400 mb-2">Status</p>
+                  <Select 
+                    value={task.status} 
+                    onValueChange={handleStatusChange}
+                    disabled={updateStatusMutation.isPending}
+                  >
+                    <SelectTrigger 
+                      data-testid="select-status"
+                      className="bg-primary/20 text-primary border-primary/50 hover:bg-primary/30"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black border-primary/50">
+                      <SelectItem value="todo" data-testid="status-todo">A Fazer</SelectItem>
+                      <SelectItem value="in_progress" data-testid="status-in-progress">Em Progresso</SelectItem>
+                      <SelectItem value="review" data-testid="status-review">Em Revisão</SelectItem>
+                      <SelectItem value="done" data-testid="status-done">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="bg-black/40 p-4 rounded border border-primary/20">
                   <p className="text-xs text-gray-400 mb-1">Prioridade</p>

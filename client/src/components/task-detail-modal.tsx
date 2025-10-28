@@ -32,8 +32,11 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
       await apiRequest("PATCH", `/api/tasks/${id}`, data);
     },
     onSuccess: () => {
+      // Invalidate and refetch all task-related queries for real-time updates
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.refetchQueries({ queryKey: ["/api/tasks"] });
+      queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({
         title: "Sucesso",
         description: "Tarefa atualizada com sucesso!",
@@ -365,14 +368,26 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                   
                   <div className="space-y-2">
                     {task.status !== 'done' && (
-                      <Button 
-                        onClick={() => handleStatusChange(task.status === 'todo' ? 'in_progress' : 'done')}
-                        className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                        disabled={updateTaskMutation.isPending}
-                        data-testid="button-move-task"
-                      >
-                        {task.status === 'todo' ? 'Mover para Em Progresso' : 'Marcar como Concluído'}
-                      </Button>
+                      <>
+                        {task.status === 'todo' && (
+                          <Button 
+                            onClick={() => handleStatusChange('in_progress')}
+                            className="w-full bg-primary/20 text-primary hover:bg-primary/30"
+                            disabled={updateTaskMutation.isPending}
+                            data-testid="button-start-task"
+                          >
+                            Iniciar Tarefa
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={() => handleStatusChange('done')}
+                          className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                          disabled={updateTaskMutation.isPending}
+                          data-testid="button-move-task"
+                        >
+                          Marcar como Concluído
+                        </Button>
+                      </>
                     )}
                     <Button 
                       variant="outline"
