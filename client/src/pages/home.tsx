@@ -6,6 +6,7 @@ import SidebarNav from "@/components/ui/sidebar-nav";
 import DashboardStats from "@/components/dashboard-stats";
 import PriorityTasks from "@/components/priority-tasks";
 import TeamActivity from "@/components/team-activity";
+import DeadlineNotifications from "@/components/deadline-notifications";
 import KanbanBoard from "@/components/kanban-board";
 import Tasks from "@/pages/tasks";
 import Team from "@/pages/team";
@@ -58,6 +59,7 @@ export default function Home() {
         return (
           <div className="space-y-6">
             <DashboardStats />
+            <DeadlineNotifications />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <PriorityTasks />
               <TeamActivity />

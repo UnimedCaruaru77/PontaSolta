@@ -89,13 +89,18 @@ export default function TaskModal() {
     }
     
     // Build payload expected by server - inject creatorId and normalize assigneeId
+    // Convert dates to ISO strings for backend compatibility
     const payload = {
       ...data,
       creatorId: user.id,
       assigneeId: data.assigneeId === "self" ? user.id : data.assigneeId,
+      startDate: data.startDate ? new Date(data.startDate).toISOString() : null,
+      dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
     };
     
     console.log("🔥 Processed data being sent:", payload);
+    console.log("🔥 startDate type:", typeof payload.startDate, payload.startDate);
+    console.log("🔥 dueDate type:", typeof payload.dueDate, payload.dueDate);
     createTaskMutation.mutate(payload);
   };
 
