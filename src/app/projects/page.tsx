@@ -18,9 +18,27 @@ import {
   Target
 } from 'lucide-react'
 import CreateProjectModal from '@/components/CreateProjectModal'
-import AdvancedFiltersModal, { FilterOptions } from '@/components/AdvancedFiltersModal'
+import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import { useToast } from '@/components/ToastContainer'
-import { FilterProvider, useFilters, useFilterParams } from '@/hooks/useFilters'
+import { useFilters } from '@/hooks/useFilters'
+
+interface FilterOptions {
+  dateRange: {
+    startDate: string
+    endDate: string
+    preset: 'custom' | 'today' | 'week' | 'month' | 'quarter' | 'year'
+  }
+  status: string[]
+  priority: string[]
+  urgency: string[]
+  teams: string[]
+  assignees: string[]
+  creators: string[]
+  tags: string[]
+  hasDeadline: boolean | null
+  isOverdue: boolean | null
+  isProject: boolean | null
+}
 
 interface Project {
   id: string
@@ -57,8 +75,8 @@ function ProjectsContent() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showFiltersModal, setShowFiltersModal] = useState(false)
   const { showSuccess } = useToast()
-  const { filters, hasActiveFilters, getFilterSummary } = useFilters()
-  const { buildFilterParams } = useFilterParams()
+  const { filters, hasActiveFilters } = useFilters({ data: projects })
+
 
   const handleNewProject = () => {
     setShowCreateModal(true)
@@ -91,7 +109,7 @@ function ProjectsContent() {
     const fetchProjects = async () => {
       setLoading(true)
       try {
-        const filterParams = buildFilterParams()
+        const filterParams = ''
         const statusParam = filterStatus !== 'all' ? `&status=${filterStatus}` : ''
         const url = `/api/projects?${filterParams}${statusParam}`
         
@@ -111,7 +129,7 @@ function ProjectsContent() {
     }
 
     fetchProjects()
-  }, [filterStatus, filters, buildFilterParams])
+  }, [filterStatus, filters])
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -452,7 +470,7 @@ function ProjectsContent() {
             <div className="flex items-center space-x-2">
               <Filter className="w-4 h-4 text-primary-500" />
               <span className="text-sm text-primary-400">Filtros ativos:</span>
-              <span className="text-sm text-dark-300">{getFilterSummary()}</span>
+              <span className="text-sm text-dark-300">{hasActiveFilters ? 'Filtros aplicados' : 'Nenhum filtro'}</span>
             </div>
             <button
               onClick={() => setShowFiltersModal(true)}
@@ -476,24 +494,13 @@ function ProjectsContent() {
         isOpen={showFiltersModal}
         onClose={() => setShowFiltersModal(false)}
         onApplyFilters={handleApplyFilters}
+        context="projects"
         currentFilters={filters}
-        availableOptions={{
-          statuses: [
-            { value: 'PLANNING', label: 'Planejamento' },
-            { value: 'IN_PROGRESS', label: 'Em Andamento' },
-            { value: 'REVIEW', label: 'Em Revisão' },
-            { value: 'COMPLETED', label: 'Concluído' }
-          ]
-        }}
       />
     </div>
   )
 }
 
 export default function ProjectsPage() {
-  return (
-    <FilterProvider>
-      <ProjectsContent />
-    </FilterProvider>
-  )
+  return <ProjectsContent />
 }

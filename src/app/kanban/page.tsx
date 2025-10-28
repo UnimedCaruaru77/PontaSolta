@@ -7,9 +7,27 @@ import { Plus, Filter, Search } from 'lucide-react'
 import KanbanColumn from '@/components/KanbanColumn'
 import KanbanCard from '@/components/KanbanCard'
 import CardModal from '@/components/CardModal'
-import AdvancedFiltersModal, { FilterOptions } from '@/components/AdvancedFiltersModal'
+import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import { useAuth } from '@/hooks/useAuth'
-import { FilterProvider, useFilters } from '@/hooks/useFilters'
+import { useFilters } from '@/hooks/useFilters'
+
+interface FilterOptions {
+  dateRange: {
+    startDate: string
+    endDate: string
+    preset: 'custom' | 'today' | 'week' | 'month' | 'quarter' | 'year'
+  }
+  status: string[]
+  priority: string[]
+  urgency: string[]
+  teams: string[]
+  assignees: string[]
+  creators: string[]
+  tags: string[]
+  hasDeadline: boolean | null
+  isOverdue: boolean | null
+  isProject: boolean | null
+}
 
 interface Card {
     id: string
@@ -62,7 +80,7 @@ function KanbanContent() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [showFiltersModal, setShowFiltersModal] = useState(false)
-    const { filters, hasActiveFilters, getFilterSummary } = useFilters()
+    const { filters, hasActiveFilters } = useFilters({ data: [] })
 
     useEffect(() => {
         const fetchBoards = async () => {
@@ -474,7 +492,7 @@ function KanbanContent() {
                         <div className="flex items-center space-x-2">
                             <Filter className="w-4 h-4 text-primary-500" />
                             <span className="text-sm text-primary-400">Filtros ativos:</span>
-                            <span className="text-sm text-dark-300">{getFilterSummary()}</span>
+                            <span className="text-sm text-dark-300">{hasActiveFilters ? 'Filtros aplicados' : 'Nenhum filtro'}</span>
                         </div>
                         <button
                             onClick={() => setShowFiltersModal(true)}
@@ -531,6 +549,7 @@ function KanbanContent() {
                 isOpen={showFiltersModal}
                 onClose={() => setShowFiltersModal(false)}
                 onApplyFilters={handleApplyFilters}
+                context="kanban"
                 currentFilters={filters}
             />
         </div>
@@ -539,27 +558,25 @@ function KanbanContent() {
 
 export default function KanbanPage() {
     return (
-        <FilterProvider>
-            <Suspense fallback={
-                <div className="p-6">
-                    <div className="animate-pulse space-y-4">
-                        <div className="h-8 bg-dark-700 rounded w-1/4"></div>
-                        <div className="grid grid-cols-4 gap-6">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="space-y-3">
-                                    <div className="h-6 bg-dark-700 rounded"></div>
-                                    <div className="space-y-2">
-                                        <div className="h-24 bg-dark-700 rounded"></div>
-                                        <div className="h-24 bg-dark-700 rounded"></div>
-                                    </div>
+        <Suspense fallback={
+            <div className="p-6">
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-dark-700 rounded w-1/4"></div>
+                    <div className="grid grid-cols-4 gap-6">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="space-y-3">
+                                <div className="h-6 bg-dark-700 rounded"></div>
+                                <div className="space-y-2">
+                                    <div className="h-24 bg-dark-700 rounded"></div>
+                                    <div className="h-24 bg-dark-700 rounded"></div>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
-            }>
-                <KanbanContent />
-            </Suspense>
-        </FilterProvider>
+            </div>
+        }>
+            <KanbanContent />
+        </Suspense>
     )
 }
