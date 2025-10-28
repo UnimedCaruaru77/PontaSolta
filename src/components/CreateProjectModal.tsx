@@ -1,28 +1,27 @@
 'use client'
 
 import { useState } from 'react'
-import { X, FolderKanban, Calendar, Users, Target } from 'lucide-react'
+import { X, Calendar, Users, Target } from 'lucide-react'
 import { useToast } from './ToastContainer'
-import { ButtonSpinner } from './LoadingSpinner'
-
-interface CreateProjectModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSuccess?: (project: any) => void
-}
 
 interface ProjectFormData {
   title: string
   description: string
-  methodology: 'AGILE' | 'LEAN_STARTUP' | 'DESIGN_THINKING' | 'PMI'
-  priority: 'HIGH' | 'MEDIUM' | 'LOW'
+  methodology: 'AGILE' | 'WATERFALL' | 'KANBAN' | 'SCRUM' | 'DESIGN_THINKING' | 'PMI'
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   startDate: string
   endDate: string
   team: string
   budget?: number
 }
 
-export default function CreateProjectModal({ isOpen, onClose, onSuccess }: CreateProjectModalProps) {
+interface CreateProjectModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onProjectCreated: (project: any) => void
+}
+
+export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }: CreateProjectModalProps) {
   const { showSuccess, showError } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProjectFormData>({
@@ -35,56 +34,82 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
     team: '',
     budget: undefined
   })
-
   const [errors, setErrors] = useState<Partial<ProjectFormData>>({})
 
-  if (!isOpen) return null
+  const validateForm = (): boolean => {
+    const newErrors: Partial<ProjectFormData> = {}
 
+    if (!formData.title.trim()) {
+      newErrors.title = 'Título é obrigatório'
+    }
 
+    if (!formData.description.trim()) {
+      newErrors.description = 'Descrição é obrigatória'
+    }
+
+    if (!formData.startDate) {
+      newErrors.startDate = 'Data de início é obrigatória'
+    }
+
+    if (!formData.endDate) {
+      newErrors.endDate = 'Data de término é obrigatória'
+    }
+
+    if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
+      newErrors.endDate = 'Data de término deve ser posterior à data de início'
+    }
+
+    if (!formData.team.trim()) {
+      newErrors.team = 'Equipe é obrigatória'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateAll()) {
+    if (!validateForm()) {
       showError('Erro de Validação', 'Por favor, corrija os campos destacados')
       return
     }
 
     setLoading(true)
-
     try {
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          status: 'PLANNING',
-          progress: 0,
-          createdAt: new Date().toISOString()
-        })
+        body: JSON.stringify(formData),
       })
 
-      if (!response.ok) {
-        throw new Error('Erro ao criar projeto')
+      if (response.ok) {
+        const project = await response.json()
+        showSuccess('Projeto Criado', 'Projeto criado com sucesso!')
+        onProjectCreated(project)
+        
+        // Reset form
+        setFormData({
+          title: '',
+          description: '',
+          methodology: 'AGILE',
+          priority: 'MEDIUM',
+          startDate: '',
+          endDate: '',
+          team: '',
+          budget: undefined
+        })
+        setErrors({})
+        onClose()
+      } else {
+        const error = await response.json()
+        showError('Erro', error.message || 'Erro ao criar projeto')
       }
-
-      const data = await response.json()
-      
-      showSuccess('Projeto Criado!', `O projeto "${formData.title}" foi criado com sucesso`)
-      
-      if (onSuccess) {
-        onSuccess(data.project)
-      }
-      
-      // Reset form
-      reset()
-      onClose()
-
     } catch (error) {
       console.error('Erro ao criar projeto:', error)
-      showError('Erro ao Criar Projeto', 'Ocorreu um erro inesperado. Tente novamente.')
+      showError('Erro', 'Erro interno do servidor')
     } finally {
       setLoading(false)
     }
@@ -92,137 +117,146 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
   const handleClose = () => {
     if (!loading) {
-      reset()
+      setErrors({})
       onClose()
     }
   }
 
+  if (!isOpen) return null
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-dark-800 border border-dark-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-dark-700">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-secondary-500/10 rounded-lg">
-              <FolderKanban className="w-5 h-5 text-secondary-500" />
-            </div>
-            <h2 className="text-xl font-semibold text-dark-50">Novo Projeto</h2>
-          </div>
+          <h2 className="text-xl font-semibold text-dark-50">Novo Projeto</h2>
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-dark-200 transition-colors disabled:opacity-50"
+            className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-dark-200 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto">
-          {/* Título */}
-          <FormField
-            label="Título do Projeto"
-            required
-            error={errors.title}
-            hasError={!!errors.title}
-          >
-            <InputField
-              {...getFieldProps('title')}
-              placeholder="Digite o título do projeto"
-              disabled={loading}
-            />
-          </FormField>
-
-          {/* Descrição */}
-          <FormField
-            label="Descrição"
-            required
-            error={errors.description}
-            hasError={!!errors.description}
-            hint="Descreva os objetivos e escopo do projeto (mínimo 10 caracteres)"
-          >
-            <TextAreaField
-              {...getFieldProps('description')}
-              placeholder="Descreva os objetivos e escopo do projeto"
-              disabled={loading}
-              rows={3}
-            />
-          </FormField>
-
-          {/* Metodologia e Prioridade */}
-          <div className="grid grid-cols-2 gap-4">
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Título */}
             <div>
               <label className="block text-sm font-medium text-dark-200 mb-2">
-                Metodologia
-              </label>
-              <SelectField
-                value={formData.methodology}
-                onChange={(e) => getFieldProps('methodology').onChange(e)}
-                disabled={loading}
-              >
-                <option value="AGILE">Ágil</option>
-                <option value="LEAN_STARTUP">Lean Startup</option>
-                <option value="DESIGN_THINKING">Design Thinking</option>
-                <option value="PMI">PMI</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-dark-200 mb-2">
-                Prioridade
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
-                className="input-field w-full"
-                disabled={loading}
-              >
-                <option value="LOW">Baixa</option>
-                <option value="MEDIUM">Média</option>
-                <option value="HIGH">Alta</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Datas */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-dark-200 mb-2">
-                Data de Início *
+                Título do Projeto *
               </label>
               <input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                className={`input-field w-full ${errors.startDate ? 'border-accent-red' : ''}`}
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                className={`input-field w-full ${errors.title ? 'border-accent-red' : ''}`}
+                placeholder="Digite o título do projeto"
                 disabled={loading}
               />
-              {errors.startDate && (
-                <p className="text-accent-red text-sm mt-1">{errors.startDate}</p>
+              {errors.title && (
+                <p className="text-accent-red text-sm mt-1">{errors.title}</p>
               )}
             </div>
 
+            {/* Descrição */}
             <div>
               <label className="block text-sm font-medium text-dark-200 mb-2">
-                Data de Término *
+                Descrição *
               </label>
-              <input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                className={`input-field w-full ${errors.endDate ? 'border-accent-red' : ''}`}
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className={`input-field w-full h-24 resize-none ${errors.description ? 'border-accent-red' : ''}`}
+                placeholder="Descreva os objetivos e escopo do projeto"
                 disabled={loading}
               />
-              {errors.endDate && (
-                <p className="text-accent-red text-sm mt-1">{errors.endDate}</p>
+              {errors.description && (
+                <p className="text-accent-red text-sm mt-1">{errors.description}</p>
               )}
             </div>
-          </div>
 
-          {/* Equipe e Orçamento */}
-          <div className="grid grid-cols-2 gap-4">
+            {/* Metodologia e Prioridade */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  Metodologia
+                </label>
+                <select
+                  value={formData.methodology}
+                  onChange={(e) => setFormData(prev => ({ ...prev, methodology: e.target.value as any }))}
+                  className="input-field w-full"
+                  disabled={loading}
+                >
+                  <option value="AGILE">Ágil</option>
+                  <option value="WATERFALL">Cascata</option>
+                  <option value="KANBAN">Kanban</option>
+                  <option value="SCRUM">Scrum</option>
+                  <option value="DESIGN_THINKING">Design Thinking</option>
+                  <option value="PMI">PMI</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  Prioridade
+                </label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as any }))}
+                  className="input-field w-full"
+                  disabled={loading}
+                >
+                  <option value="LOW">Baixa</option>
+                  <option value="MEDIUM">Média</option>
+                  <option value="HIGH">Alta</option>
+                  <option value="URGENT">Urgente</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Datas */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Data de Início *
+                </label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                  className={`input-field w-full ${errors.startDate ? 'border-accent-red' : ''}`}
+                  disabled={loading}
+                />
+                {errors.startDate && (
+                  <p className="text-accent-red text-sm mt-1">{errors.startDate}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Data de Término *
+                </label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                  className={`input-field w-full ${errors.endDate ? 'border-accent-red' : ''}`}
+                  disabled={loading}
+                />
+                {errors.endDate && (
+                  <p className="text-accent-red text-sm mt-1">{errors.endDate}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Equipe */}
             <div>
               <label className="block text-sm font-medium text-dark-200 mb-2">
+                <Users className="w-4 h-4 inline mr-1" />
                 Equipe Responsável *
               </label>
               <input
@@ -230,7 +264,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
                 value={formData.team}
                 onChange={(e) => setFormData(prev => ({ ...prev, team: e.target.value }))}
                 className={`input-field w-full ${errors.team ? 'border-accent-red' : ''}`}
-                placeholder="Nome da equipe"
+                placeholder="Nome da equipe ou responsáveis"
                 disabled={loading}
               />
               {errors.team && (
@@ -238,43 +272,51 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
               )}
             </div>
 
+            {/* Orçamento */}
             <div>
               <label className="block text-sm font-medium text-dark-200 mb-2">
-                Orçamento (opcional)
+                <Target className="w-4 h-4 inline mr-1" />
+                Orçamento (R$)
               </label>
               <input
                 type="number"
                 value={formData.budget || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value ? Number(e.target.value) : undefined }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value ? parseFloat(e.target.value) : undefined }))}
                 className="input-field w-full"
-                placeholder="R$ 0,00"
+                placeholder="0,00"
                 min="0"
                 step="0.01"
                 disabled={loading}
               />
             </div>
-          </div>
 
-          {/* Botões */}
-          <div className="flex items-center justify-end space-x-3 pt-4 border-t border-dark-700">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={loading}
-              className="btn-secondary disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary disabled:opacity-50 flex items-center space-x-2"
-            >
-              {loading && <ButtonSpinner />}
-              <span>{loading ? 'Criando...' : 'Criar Projeto'}</span>
-            </button>
-          </div>
-        </form>
+            {/* Actions */}
+            <div className="flex space-x-3 pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary flex-1"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Criando...
+                  </div>
+                ) : (
+                  'Criar Projeto'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading}
+                className="btn-secondary"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )
