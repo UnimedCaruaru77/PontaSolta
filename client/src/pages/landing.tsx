@@ -2,10 +2,59 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: "Erro",
+        description: "Por favor, preencha email e senha",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erro ao fazer login");
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Login realizado com sucesso!",
+      });
+
+      window.location.href = "/";
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Email ou senha incorretos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -22,7 +71,7 @@ export default function Landing() {
               </p>
             </div>
             
-            <div className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="email" className="text-sm font-medium">Email</Label>
@@ -32,7 +81,10 @@ export default function Landing() {
                     placeholder="usuario@empresa.com"
                     className="bg-input border-border focus:border-primary focus:ring-primary"
                     data-testid="input-email"
-                    disabled
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                    required
                   />
                 </div>
                 
@@ -44,23 +96,23 @@ export default function Landing() {
                     placeholder="••••••••"
                     className="bg-input border-border focus:border-primary focus:ring-primary"
                     data-testid="input-password"
-                    disabled
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    required
                   />
                 </div>
               </div>
               
               <Button 
-                onClick={handleLogin}
+                type="submit"
                 className="w-full bg-primary text-primary-foreground font-semibold hover:bg-primary/90 neon-glow"
                 data-testid="button-login"
+                disabled={isLoading}
               >
-                ACESSAR SISTEMA
+                {isLoading ? "ENTRANDO..." : "ACESSAR SISTEMA"}
               </Button>
-
-              <div className="text-center text-sm text-muted-foreground">
-                <p>Use o sistema de autenticação para fazer login</p>
-              </div>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>
