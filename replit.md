@@ -2,22 +2,29 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with features like Kanban boards, team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
-## Recent Changes (v2.2.0 - October 28, 2025)
+## Recent Changes (v2.3.0 - October 28, 2025)
 
 ### ✅ Completed Features
 1. **Task Comments System**: Full CRUD for task comments with user attribution and timestamps
 2. **Audit Log (Task History)**: Automatic tracking of task creation and field changes with visual timeline
 3. **Deadline Notifications**: Dashboard widget showing overdue, today, and upcoming tasks with color-coded sections
+4. **Inline Status Editing**: TaskDetailsModal (Kanban) now allows status changes via Select dropdown
+5. **Real-Time Cache Updates**: All task updates now trigger immediate dashboard and notification refreshes
 
 ### 🔧 Technical Improvements
 - Fixed date handling in task creation (ISO string conversion)
 - Improved date classification logic (day-level vs timestamp comparison)
-- Enhanced cache invalidation for Kanban drag-and-drop operations
+- **CRITICAL FIX**: Changed `staleTime: Infinity` to `staleTime: 0` in queryClient for real-time updates
+- **Centralized cache invalidation**: All three update paths (Kanban drag-and-drop, TaskDetailsModal, TaskDetailModal) now:
+  - Call `invalidateQueries` for /api/tasks and /api/dashboard/stats
+  - Call `refetchQueries` for both endpoints to force immediate refresh
+- Fixed TaskDetailModal button logic: now shows both "Iniciar Tarefa" and "Marcar como Concluído" buttons when status is 'todo'
 - Database cleanup of legacy epoch dates
 
-### ⚠️ Known Issues
-- Cache invalidation needs centralization for all task update paths (not just drag-and-drop)
-- Task details modal is read-only (status changes only via Kanban board)
+### 🎯 Resolved Issues
+- ✅ Cache invalidation now centralized across all task update paths
+- ✅ Task details modals (both Kanban and My Tasks) now support status editing
+- ✅ Dashboard statistics and deadline notifications update in real-time without page reload
 
 # User Preferences
 
