@@ -205,6 +205,31 @@ export async function setupAuth(app: Express) {
       res.json({ message: "Logout realizado com sucesso" });
     });
   });
+
+  // TEMPORARY: Setup admin password endpoint (remove after first use)
+  app.post("/api/auth/setup-admin", async (req, res) => {
+    try {
+      const { email, password, secret } = req.body;
+      
+      // Simple security check
+      if (secret !== "setup-ponta-solta-2025") {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      await storage.updateUser(user.id, { passwordHash });
+
+      res.json({ message: "Senha configurada com sucesso" });
+    } catch (error) {
+      console.error("Error setting up admin:", error);
+      res.status(500).json({ message: "Erro ao configurar senha" });
+    }
+  });
 }
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
