@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { useToast } from './ToastContainer'
 import { ButtonSpinner } from './LoadingSpinner'
+import CommentsSystem from './CommentsSystem'
+import AttachmentsSystem, { useAttachments } from './AttachmentsSystem'
 
 interface Card {
   id: string
@@ -59,6 +61,9 @@ interface CardModalProps {
 export default function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
   const { showSuccess, showError } = useToast()
   const [formData, setFormData] = useState<Card>(card)
+  
+  // Anexos
+  const { attachments, loading: loadingAttachments, setAttachments } = useAttachments(card?.id || '', 'card')
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const [showLecomForm, setShowLecomForm] = useState(false)
@@ -535,6 +540,25 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
               >
                 Cancelar
               </button>
+            </div>
+
+            {/* Sistema de Anexos */}
+            <div className="border-t border-dark-700 pt-6">
+              <AttachmentsSystem
+                entityId={card.id}
+                entityType="card"
+                attachments={attachments}
+                onAttachmentsChange={setAttachments}
+              />
+            </div>
+
+            {/* Sistema de Comentários */}
+            <div className="border-t border-dark-700 pt-6">
+              <CommentsSystem
+                entityId={card.id}
+                entityType="card"
+                currentUserId="user_1" // TODO: Pegar do contexto de autenticação
+              />
             </div>
           </div>
         </div>

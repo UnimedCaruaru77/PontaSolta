@@ -40,41 +40,12 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
   if (!isOpen) return null
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<ProjectFormData> = {}
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Título é obrigatório'
-    }
-
-    if (!formData.description.trim()) {
-      newErrors.description = 'Descrição é obrigatória'
-    }
-
-    if (!formData.startDate) {
-      newErrors.startDate = 'Data de início é obrigatória'
-    }
-
-    if (!formData.endDate) {
-      newErrors.endDate = 'Data de término é obrigatória'
-    }
-
-    if (formData.startDate && formData.endDate && formData.startDate >= formData.endDate) {
-      newErrors.endDate = 'Data de término deve ser posterior à data de início'
-    }
-
-    if (!formData.team.trim()) {
-      newErrors.team = 'Equipe é obrigatória'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) {
+    if (!validateAll()) {
       showError('Erro de Validação', 'Por favor, corrija os campos destacados')
       return
     }
@@ -108,17 +79,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
       }
       
       // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        methodology: 'AGILE',
-        priority: 'MEDIUM',
-        startDate: '',
-        endDate: '',
-        team: '',
-        budget: undefined
-      })
-      setErrors({})
+      reset()
       onClose()
 
     } catch (error) {
@@ -131,7 +92,7 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
 
   const handleClose = () => {
     if (!loading) {
-      setErrors({})
+      reset()
       onClose()
     }
   }
@@ -159,39 +120,34 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[calc(90vh-120px)] overflow-y-auto">
           {/* Título */}
-          <div>
-            <label className="block text-sm font-medium text-dark-200 mb-2">
-              Título do Projeto *
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className={`input-field w-full ${errors.title ? 'border-accent-red' : ''}`}
+          <FormField
+            label="Título do Projeto"
+            required
+            error={errors.title}
+            hasError={!!errors.title}
+          >
+            <InputField
+              {...getFieldProps('title')}
               placeholder="Digite o título do projeto"
               disabled={loading}
             />
-            {errors.title && (
-              <p className="text-accent-red text-sm mt-1">{errors.title}</p>
-            )}
-          </div>
+          </FormField>
 
           {/* Descrição */}
-          <div>
-            <label className="block text-sm font-medium text-dark-200 mb-2">
-              Descrição *
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className={`input-field w-full h-24 resize-none ${errors.description ? 'border-accent-red' : ''}`}
+          <FormField
+            label="Descrição"
+            required
+            error={errors.description}
+            hasError={!!errors.description}
+            hint="Descreva os objetivos e escopo do projeto (mínimo 10 caracteres)"
+          >
+            <TextAreaField
+              {...getFieldProps('description')}
               placeholder="Descreva os objetivos e escopo do projeto"
               disabled={loading}
+              rows={3}
             />
-            {errors.description && (
-              <p className="text-accent-red text-sm mt-1">{errors.description}</p>
-            )}
-          </div>
+          </FormField>
 
           {/* Metodologia e Prioridade */}
           <div className="grid grid-cols-2 gap-4">
@@ -199,10 +155,9 @@ export default function CreateProjectModal({ isOpen, onClose, onSuccess }: Creat
               <label className="block text-sm font-medium text-dark-200 mb-2">
                 Metodologia
               </label>
-              <select
+              <SelectField
                 value={formData.methodology}
-                onChange={(e) => setFormData(prev => ({ ...prev, methodology: e.target.value as any }))}
-                className="input-field w-full"
+                onChange={(e) => getFieldProps('methodology').onChange(e)}
                 disabled={loading}
               >
                 <option value="AGILE">Ágil</option>
