@@ -63,24 +63,44 @@ export function getSession() {
 }
 
 async function initializeAdminUser() {
+  const adminEmail = process.env.ADMIN_EMAIL || 'luciano.filho@unimedcaruaru.com.br';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || 'luciano.filho@unimedcaruaru.com.br';
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    
-    // Security check: require ADMIN_PASSWORD environment variable
-    if (!adminPassword) {
-      console.warn('[auth] ⚠️ ADMIN_PASSWORD environment variable not set. Skipping admin initialization.');
-      console.warn('[auth] Please set ADMIN_PASSWORD secret in your Replit environment to enable admin user creation.');
-      return;
-    }
-    
     // Check if admin user already exists
     const existingAdmin = await storage.getUserByEmail(adminEmail);
     
+    // If admin already exists with password, we're good
+    if (existingAdmin && existingAdmin.passwordHash) {
+      console.log('[auth] Admin user already configured');
+      return;
+    }
+    
+    // Admin doesn't exist or has no password - we MUST have ADMIN_PASSWORD secret
+    if (!adminPassword) {
+      const errorMsg = `
+╔═══════════════════════════════════════════════════════════════╗
+║ CRITICAL ERROR: ADMIN_PASSWORD secret is not configured      ║
+║                                                               ║
+║ The application cannot start without an admin user.          ║
+║ Please set the ADMIN_PASSWORD environment secret and         ║
+║ restart the application.                                     ║
+║                                                               ║
+║ To fix:                                                       ║
+║ 1. Go to Replit Secrets                                      ║
+║ 2. Add secret: ADMIN_PASSWORD = <your-secure-password>       ║
+║ 3. Restart/republish the application                         ║
+╚═══════════════════════════════════════════════════════════════╝
+      `;
+      console.error(errorMsg);
+      throw new Error('ADMIN_PASSWORD environment variable is required but not set');
+    }
+    
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    
     if (!existingAdmin) {
+      // Create new admin user
       console.log('[auth] Admin user not found in database. Creating default admin user...');
-      
-      const passwordHash = await bcrypt.hash(adminPassword, 10);
       
       await storage.createUser({
         email: adminEmail,
@@ -95,15 +115,13 @@ async function initializeAdminUser() {
     } else if (!existingAdmin.passwordHash) {
       // User exists but has no password - update it
       console.log('[auth] Admin user exists but has no password. Setting password...');
-      const passwordHash = await bcrypt.hash(adminPassword, 10);
       await storage.updateUser(existingAdmin.id, { passwordHash });
       console.log('[auth] ✅ Admin password set successfully');
       console.log('[auth] ⚠️ IMPORTANT: Please change the admin password after first login!');
-    } else {
-      console.log('[auth] Admin user already configured');
     }
   } catch (error) {
-    console.error('[auth] Error initializing admin user:', error);
+    console.error('[auth] Fatal error initializing admin user:', error);
+    throw error; // Fail fast - don't start the app without admin access
   }
 }
 

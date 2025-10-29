@@ -25,8 +25,10 @@ PONTA SOLTA is a futuristic task management system built with a modern full-stac
 
 ### Admin Credentials
 - Email: `luciano.filho@unimedcaruaru.com.br`
-- Password: `admin123`
+- Password: Set via `ADMIN_PASSWORD` environment secret
 - Role: admin
+
+**Note**: The admin user is automatically created on first deployment when the database is empty. The password is read from the `ADMIN_PASSWORD` secret for security. After first login, users should change their password.
 
 ## Previous Changes (v2.3.0 - October 28, 2025)
 
