@@ -62,11 +62,59 @@ export function getSession() {
   });
 }
 
+async function initializeAdminUser() {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'luciano.filho@unimedcaruaru.com.br';
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    
+    // Security check: require ADMIN_PASSWORD environment variable
+    if (!adminPassword) {
+      console.warn('[auth] ⚠️ ADMIN_PASSWORD environment variable not set. Skipping admin initialization.');
+      console.warn('[auth] Please set ADMIN_PASSWORD secret in your Replit environment to enable admin user creation.');
+      return;
+    }
+    
+    // Check if admin user already exists
+    const existingAdmin = await storage.getUserByEmail(adminEmail);
+    
+    if (!existingAdmin) {
+      console.log('[auth] Admin user not found in database. Creating default admin user...');
+      
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+      
+      await storage.createUser({
+        email: adminEmail,
+        passwordHash,
+        firstName: 'Luciano',
+        lastName: 'Filho',
+        role: 'admin',
+      });
+      
+      console.log(`[auth] ✅ Default admin user created: ${adminEmail}`);
+      console.log('[auth] ⚠️ IMPORTANT: Please change the admin password after first login!');
+    } else if (!existingAdmin.passwordHash) {
+      // User exists but has no password - update it
+      console.log('[auth] Admin user exists but has no password. Setting password...');
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+      await storage.updateUser(existingAdmin.id, { passwordHash });
+      console.log('[auth] ✅ Admin password set successfully');
+      console.log('[auth] ⚠️ IMPORTANT: Please change the admin password after first login!');
+    } else {
+      console.log('[auth] Admin user already configured');
+    }
+  } catch (error) {
+    console.error('[auth] Error initializing admin user:', error);
+  }
+}
+
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Initialize admin user if database is empty
+  await initializeAdminUser();
 
   passport.use(new LocalStrategy(
     {
@@ -204,31 +252,6 @@ export async function setupAuth(app: Express) {
       }
       res.json({ message: "Logout realizado com sucesso" });
     });
-  });
-
-  // TEMPORARY: Setup admin password endpoint (remove after first use)
-  app.post("/api/auth/setup-admin", async (req, res) => {
-    try {
-      const { email, password, secret } = req.body;
-      
-      // Simple security check
-      if (secret !== "setup-ponta-solta-2025") {
-        return res.status(403).json({ message: "Acesso negado" });
-      }
-
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(404).json({ message: "Usuário não encontrado" });
-      }
-
-      const passwordHash = await bcrypt.hash(password, 10);
-      await storage.updateUser(user.id, { passwordHash });
-
-      res.json({ message: "Senha configurada com sucesso" });
-    } catch (error) {
-      console.error("Error setting up admin:", error);
-      res.status(500).json({ message: "Erro ao configurar senha" });
-    }
   });
 }
 
