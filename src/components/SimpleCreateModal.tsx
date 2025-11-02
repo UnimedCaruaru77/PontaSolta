@@ -73,6 +73,8 @@ export default function SimpleCreateModal({
 
       const data = await response.json()
       
+      console.log('Card criado pela API:', data.card)
+      
       alert('Card criado com sucesso!')
       onCardCreated(data.card)
       

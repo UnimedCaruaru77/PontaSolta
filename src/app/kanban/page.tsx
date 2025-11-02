@@ -203,7 +203,10 @@ function KanbanContent() {
         setShowCreateModal(true)
     }
 
-    const handleCardCreated = (newCard: Card) => {
+    const handleCardCreated = async (newCard: Card) => {
+        console.log('Card criado recebido:', newCard)
+        console.log('Board selecionado:', selectedBoard)
+        
         // Adicionar o novo card ao estado local
         setBoards(prevBoards => 
             prevBoards.map(board => 
@@ -217,6 +220,11 @@ function KanbanContent() {
                 } : board
             )
         )
+        
+        // Forçar reload dos dados para garantir sincronização
+        setTimeout(() => {
+            fetchBoards()
+        }, 1000)
     }
 
     const handleFiltersClick = () => {
