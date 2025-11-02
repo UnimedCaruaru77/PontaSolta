@@ -103,6 +103,19 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
     setLoading(true)
     
     try {
+      console.log('Salvando card com dados:', {
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        urgency: formData.urgency,
+        highImpact: formData.highImpact,
+        isProject: formData.isProject,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        assigneeId: formData.assignee?.id,
+        lecomTicket: formData.lecomTicket
+      })
+
       const response = await fetch(`/api/cards/${card.id}`, {
         method: 'PUT',
         headers: {
@@ -117,7 +130,8 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
           isProject: formData.isProject,
           startDate: formData.startDate,
           endDate: formData.endDate,
-          assigneeId: formData.assignee?.id
+          assigneeId: formData.assignee?.id,
+          lecomTicket: formData.lecomTicket
         })
       })
 

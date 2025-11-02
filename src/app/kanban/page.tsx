@@ -7,6 +7,7 @@ import { Plus, Filter, Search } from 'lucide-react'
 import KanbanColumn from '@/components/KanbanColumn'
 import KanbanCard from '@/components/KanbanCard'
 import CardModal from '@/components/CardModal'
+import CreateCardModal from '@/components/CreateCardModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useFilters } from '@/hooks/useFilters'
@@ -59,6 +60,8 @@ function KanbanContent() {
     const [activeCard, setActiveCard] = useState<Card | null>(null)
     const [selectedCard, setSelectedCard] = useState<Card | null>(null)
     const [isCardModalOpen, setIsCardModalOpen] = useState(false)
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [createColumnId, setCreateColumnId] = useState('')
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [showFiltersModal, setShowFiltersModal] = useState(false)
@@ -196,8 +199,24 @@ function KanbanContent() {
     }
 
     const handleNewCard = (columnId: string) => {
-        // Implementar criação de novo card
-        console.log('Criar novo card na coluna:', columnId)
+        setCreateColumnId(columnId)
+        setShowCreateModal(true)
+    }
+
+    const handleCardCreated = (newCard: Card) => {
+        // Adicionar o novo card ao estado local
+        setBoards(prevBoards => 
+            prevBoards.map(board => 
+                board.id === selectedBoard ? {
+                    ...board,
+                    columns: board.columns.map(column => 
+                        column.id === newCard.columnId 
+                            ? { ...column, cards: [...column.cards, newCard] }
+                            : column
+                    )
+                } : board
+            )
+        )
     }
 
     const handleFiltersClick = () => {
@@ -347,6 +366,15 @@ function KanbanContent() {
                     }}
                 />
             )}
+
+            {/* Create Card Modal */}
+            <CreateCardModal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                columnId={createColumnId}
+                boardId={selectedBoard}
+                onCardCreated={handleCardCreated}
+            />
 
             {/* Advanced Filters Modal */}
             <AdvancedFiltersModal

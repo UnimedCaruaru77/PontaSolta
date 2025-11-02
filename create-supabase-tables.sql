@@ -200,6 +200,24 @@ CREATE INDEX idx_cards_assignee_id ON cards(assignee_id);
 CREATE INDEX idx_checklist_items_card_id ON checklist_items(card_id);
 CREATE INDEX idx_card_history_card_id ON card_history(card_id);
 
+-- Tabela de comentários
+CREATE TABLE IF NOT EXISTS comments (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('card', 'project', 'team')),
+    author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Índices para comentários
+CREATE INDEX IF NOT EXISTS idx_comments_entity ON comments(entity_id, entity_type);
+CREATE INDEX IF NOT EXISTS idx_comments_author ON comments(author_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_comments_created ON comments(created_at);
+
 -- Habilitar RLS (Row Level Security)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
@@ -210,6 +228,7 @@ ALTER TABLE columns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checklist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE card_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_collaborators ENABLE ROW LEVEL SECURITY;
 
@@ -223,6 +242,7 @@ CREATE POLICY "Allow all operations" ON columns FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON cards FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON checklist_items FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON card_history FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON comments FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON projects FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON project_collaborators FOR ALL USING (true);
 
@@ -242,4 +262,5 @@ CREATE TRIGGER update_boards_updated_at BEFORE UPDATE ON boards FOR EACH ROW EXE
 CREATE TRIGGER update_columns_updated_at BEFORE UPDATE ON columns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_cards_updated_at BEFORE UPDATE ON cards FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_checklist_items_updated_at BEFORE UPDATE ON checklist_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
