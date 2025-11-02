@@ -10,7 +10,6 @@ import CardModal from '@/components/CardModal'
 import CreateCardModal from '@/components/CreateCardModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import { useAuth } from '@/hooks/useAuth'
-import { useFilters } from '@/hooks/useFilters'
 
 interface Card {
     id: string
@@ -65,7 +64,8 @@ function KanbanContent() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [showFiltersModal, setShowFiltersModal] = useState(false)
-    const { filters, hasActiveFilters } = useFilters({ data: [] })
+    const [filters, setFilters] = useState<any>({})
+    const hasActiveFilters = false
 
     const fetchBoards = async () => {
         try {
@@ -223,7 +223,7 @@ function KanbanContent() {
         setShowFiltersModal(true)
     }
 
-    // Filtrar cards baseado na busca e filtros
+    // Filtrar cards baseado na busca
     const getFilteredCards = (cards: Card[]) => {
         return cards.filter(card => {
             // Filtro de busca
@@ -231,21 +231,6 @@ function KanbanContent() {
                 !card.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
                 return false
             }
-
-            // Aplicar outros filtros se necessário
-            if (hasActiveFilters) {
-                if (filters.priority && filters.priority.length > 0 && !filters.priority.includes(card.priority)) {
-                    return false
-                }
-                if (filters.urgency && filters.urgency.length > 0 && !filters.urgency.includes(card.urgency)) {
-                    return false
-                }
-                if (filters.assignees && filters.assignees.length > 0 && 
-                    (!card.assignee || !filters.assignees.includes(card.assignee.id))) {
-                    return false
-                }
-            }
-
             return true
         })
     }
@@ -368,24 +353,29 @@ function KanbanContent() {
             )}
 
             {/* Create Card Modal */}
-            <CreateCardModal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
-                columnId={createColumnId}
-                boardId={selectedBoard}
-                onCardCreated={handleCardCreated}
-            />
+            {showCreateModal && (
+                <CreateCardModal
+                    isOpen={showCreateModal}
+                    onClose={() => setShowCreateModal(false)}
+                    columnId={createColumnId}
+                    boardId={selectedBoard}
+                    onCardCreated={handleCardCreated}
+                />
+            )}
 
             {/* Advanced Filters Modal */}
-            <AdvancedFiltersModal
-                isOpen={showFiltersModal}
-                onClose={() => setShowFiltersModal(false)}
-                onApplyFilters={(newFilters) => {
-                    // Aplicar filtros
-                    console.log('Aplicar filtros:', newFilters)
-                    setShowFiltersModal(false)
-                }}
-            />
+            {showFiltersModal && (
+                <AdvancedFiltersModal
+                    isOpen={showFiltersModal}
+                    onClose={() => setShowFiltersModal(false)}
+                    onApplyFilters={(newFilters) => {
+                        // Aplicar filtros
+                        console.log('Aplicar filtros:', newFilters)
+                        setFilters(newFilters)
+                        setShowFiltersModal(false)
+                    }}
+                />
+            )}
         </div>
     )
 }
