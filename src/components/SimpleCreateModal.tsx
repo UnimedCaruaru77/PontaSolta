@@ -27,6 +27,23 @@ export default function SimpleCreateModal({
     setLoading(true)
     
     try {
+      // Primeiro, vamos buscar um board existente
+      const boardsResponse = await fetch('/api/boards')
+      const boardsData = await boardsResponse.json()
+      
+      if (!boardsData.boards || boardsData.boards.length === 0) {
+        throw new Error('Nenhum board encontrado')
+      }
+      
+      const board = boardsData.boards[0]
+      const column = board.columns && board.columns.length > 0 ? board.columns[0] : null
+      
+      if (!column) {
+        throw new Error('Nenhuma coluna encontrada no board')
+      }
+
+      console.log('Usando board:', board.id, 'coluna:', column.id)
+
       const response = await fetch('/api/cards', {
         method: 'POST',
         headers: {
@@ -44,8 +61,8 @@ export default function SimpleCreateModal({
           startDate: null,
           endDate: null,
           lecomTicket: null,
-          boardId: '1',
-          columnId: 'backlog',
+          boardId: board.id,
+          columnId: column.id,
           position: 0
         })
       })
