@@ -69,15 +69,14 @@ export async function PUT(
     if (position !== undefined) updateData.position = position
     if (column_id !== undefined) updateData.column_id = column_id
 
+    console.log('Dados para atualização:', updateData)
+    console.log('ID do card:', params.id)
+
     const { data: card, error } = await supabase
       .from('cards')
       .update(updateData)
       .eq('id', params.id)
-      .select(`
-        *,
-        assignee:assignee_id(id, name, email),
-        creator:creator_id(id, name, email)
-      `)
+      .select('*')
       .single()
 
     if (error) {
