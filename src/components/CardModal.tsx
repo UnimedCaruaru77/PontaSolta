@@ -127,6 +127,9 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
 
       const data = await response.json()
       
+      console.log('Resposta da API ao salvar card:', data)
+      console.log('Card atualizado:', data.card)
+      
       showSuccess('Card Atualizado!', 'As alterações foram salvas com sucesso')
       
       if (onSave) {

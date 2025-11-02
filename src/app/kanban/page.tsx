@@ -82,20 +82,22 @@ function KanbanContent() {
     const [showFiltersModal, setShowFiltersModal] = useState(false)
     const { filters, hasActiveFilters } = useFilters({ data: [] })
 
-    useEffect(() => {
-        const fetchBoards = async () => {
-            try {
-                const url = teamId ? `/api/boards?teamId=${teamId}` : '/api/boards'
-                const response = await fetch(url)
-                if (!response.ok) {
-                    throw new Error('Erro ao carregar boards')
-                }
-                const data = await response.json()
-                
-                if (data.boards && data.boards.length > 0) {
-                    setBoards(data.boards)
+    const fetchBoards = async () => {
+        try {
+            setLoading(true)
+            const url = teamId ? `/api/boards?teamId=${teamId}` : '/api/boards'
+            const response = await fetch(url)
+            if (!response.ok) {
+                throw new Error('Erro ao carregar boards')
+            }
+            const data = await response.json()
+            
+            if (data.boards && data.boards.length > 0) {
+                setBoards(data.boards)
+                if (!selectedBoard) {
                     setSelectedBoard(data.boards[0].id)
-                } else {
+                }
+            } else {
                     // Fallback para dados mockados se não houver boards
                     const mockBoards: Board[] = [
                         {
@@ -187,8 +189,14 @@ function KanbanContent() {
             } finally {
                 setLoading(false)
             }
+        } catch (error) {
+            console.error('Erro ao carregar boards:', error)
+        } finally {
+            setLoading(false)
         }
+    }
 
+    useEffect(() => {
         fetchBoards()
     }, [teamId])
 
@@ -535,9 +543,32 @@ function KanbanContent() {
                         setIsCardModalOpen(false)
                         setSelectedCard(null)
                     }}
-                    onSave={(updatedCard) => {
-                        // Implementar salvamento
-                        console.log('Salvar card:', updatedCard)
+                    onSave={async (updatedCard) => {
+                        try {
+                            // Atualizar o card no estado local imediatamente
+                            setBoards(prevBoards => 
+                                prevBoards.map(board => ({
+                                    ...board,
+                                    columns: board.columns.map(column => ({
+                                        ...column,
+                                        cards: column.cards.map(card => 
+                                            card.id === updatedCard.id ? updatedCard : card
+                                        )
+                                    }))
+                                }))
+                            )
+                            
+                            console.log('Card atualizado no estado local:', updatedCard)
+                            
+                            // Opcional: Recarregar dados do servidor para garantir sincronização
+                            // await fetchBoards()
+                            
+                        } catch (error) {
+                            console.error('Erro ao atualizar card no estado:', error)
+                            // Em caso de erro, recarregar dados do servidor
+                            await fetchBoards()
+                        }
+                        
                         setIsCardModalOpen(false)
                         setSelectedCard(null)
                     }}
