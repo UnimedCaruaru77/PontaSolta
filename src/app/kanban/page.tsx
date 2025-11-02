@@ -7,7 +7,7 @@ import { Plus, Filter, Search } from 'lucide-react'
 import KanbanColumn from '@/components/KanbanColumn'
 import KanbanCard from '@/components/KanbanCard'
 import CardModal from '@/components/CardModal'
-import CreateCardModal from '@/components/CreateCardModal'
+import SimpleCreateModal from '@/components/SimpleCreateModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -353,15 +353,11 @@ function KanbanContent() {
             )}
 
             {/* Create Card Modal */}
-            {showCreateModal && (
-                <CreateCardModal
-                    isOpen={showCreateModal}
-                    onClose={() => setShowCreateModal(false)}
-                    columnId={createColumnId}
-                    boardId={selectedBoard}
-                    onCardCreated={handleCardCreated}
-                />
-            )}
+            <SimpleCreateModal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onCardCreated={handleCardCreated}
+            />
 
             {/* Advanced Filters Modal */}
             {showFiltersModal && (
