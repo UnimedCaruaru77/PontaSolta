@@ -35,7 +35,12 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('=== INÍCIO PUT CARD ===')
+    console.log('Card ID:', params.id)
+    
     const body = await request.json()
+    console.log('Body recebido:', body)
+    
     const {
       title,
       description,
@@ -52,7 +57,11 @@ export async function PUT(
       column_id
     } = body
 
-    console.log('Updating card with data:', body)
+    // Validação básica
+    if (!params.id) {
+      console.error('ID do card não fornecido')
+      return NextResponse.json({ error: 'ID do card é obrigatório' }, { status: 400 })
+    }
 
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
@@ -70,7 +79,20 @@ export async function PUT(
     if (column_id !== undefined) updateData.column_id = column_id
 
     console.log('Dados para atualização:', updateData)
-    console.log('ID do card:', params.id)
+
+    // Verificar se o card existe primeiro
+    const { data: existingCard, error: checkError } = await supabase
+      .from('cards')
+      .select('id')
+      .eq('id', params.id)
+      .single()
+
+    if (checkError || !existingCard) {
+      console.error('Card não encontrado:', checkError)
+      return NextResponse.json({ error: 'Card não encontrado' }, { status: 404 })
+    }
+
+    console.log('Card existe, atualizando...')
 
     const { data: card, error } = await supabase
       .from('cards')
@@ -80,14 +102,22 @@ export async function PUT(
       .single()
 
     if (error) {
-      console.error('Erro ao atualizar card:', error)
-      return NextResponse.json({ error: 'Erro ao atualizar card' }, { status: 500 })
+      console.error('Erro do Supabase ao atualizar:', error)
+      return NextResponse.json({ 
+        error: 'Erro ao atualizar card', 
+        details: error.message 
+      }, { status: 500 })
     }
 
+    console.log('Card atualizado com sucesso:', card)
     return NextResponse.json({ card })
+    
   } catch (error) {
-    console.error('Erro interno:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    console.error('Erro interno completo:', error)
+    return NextResponse.json({ 
+      error: 'Erro interno do servidor',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    }, { status: 500 })
   }
 }
 
