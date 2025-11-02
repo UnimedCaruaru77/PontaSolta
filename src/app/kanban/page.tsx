@@ -11,24 +11,6 @@ import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import { useAuth } from '@/hooks/useAuth'
 import { useFilters } from '@/hooks/useFilters'
 
-interface FilterOptions {
-  dateRange: {
-    startDate: string
-    endDate: string
-    preset: 'custom' | 'today' | 'week' | 'month' | 'quarter' | 'year'
-  }
-  status: string[]
-  priority: string[]
-  urgency: string[]
-  teams: string[]
-  assignees: string[]
-  creators: string[]
-  tags: string[]
-  hasDeadline: boolean | null
-  isOverdue: boolean | null
-  isProject: boolean | null
-}
-
 interface Card {
     id: string
     title: string
@@ -98,45 +80,7 @@ function KanbanContent() {
                     setSelectedBoard(data.boards[0].id)
                 }
             } else {
-                    // Fallback para dados mockados se não houver boards
-                    const mockBoards: Board[] = [
-                        {
-                            id: '1',
-                            name: 'Service Desk Operadora',
-                            columns: [
-                                {
-                                    id: 'backlog',
-                                    name: 'Backlog',
-                                    position: 0,
-                                    cards: []
-                                },
-                                {
-                                    id: 'in_progress',
-                                    name: 'Em Andamento',
-                                    position: 1,
-                                    cards: []
-                                },
-                                {
-                                    id: 'review',
-                                    name: 'Em Revisão',
-                                    position: 2,
-                                    cards: []
-                                },
-                                {
-                                    id: 'done',
-                                    name: 'Concluído',
-                                    position: 3,
-                                    cards: []
-                                }
-                            ]
-                        }
-                    ]
-                    setBoards(mockBoards)
-                    setSelectedBoard(mockBoards[0].id)
-                }
-            } catch (error) {
-                console.error('Erro ao carregar boards:', error)
-                // Fallback para dados mockados em caso de erro
+                // Fallback para dados mockados se não houver boards
                 const mockBoards: Board[] = [
                     {
                         id: '1',
@@ -186,8 +130,6 @@ function KanbanContent() {
                 ]
                 setBoards(mockBoards)
                 setSelectedBoard(mockBoards[0].id)
-            } finally {
-                setLoading(false)
             }
         } catch (error) {
             console.error('Erro ao carregar boards:', error)
@@ -204,111 +146,48 @@ function KanbanContent() {
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event
-        const card = findCard(active.id as string)
-        setActiveCard(card)
+        const card = currentBoard?.columns
+            .flatMap(col => col.cards)
+            .find(card => card.id === active.id)
+        setActiveCard(card || null)
     }
 
-    const handleDragEnd = async (event: DragEndEvent) => {
+    const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event
         setActiveCard(null)
 
         if (!over) return
 
-        const cardId = active.id as string
-        let targetColumnId = over.id as string
+        const activeCard = currentBoard?.columns
+            .flatMap(col => col.cards)
+            .find(card => card.id === active.id)
 
-        console.log('Drag end:', { cardId, targetColumnId })
+        if (!activeCard) return
 
-        // Se o drop foi sobre um card, encontrar a coluna desse card
-        let targetColumn = currentBoard?.columns.find(col => col.id === targetColumnId)
-        
-        if (!targetColumn) {
-            // Se não encontrou a coluna diretamente, pode ser que o drop foi sobre um card
-            // Vamos procurar em qual coluna está o card de destino
-            for (const board of boards) {
-                for (const column of board.columns) {
-                    if (column.cards.some(card => card.id === targetColumnId)) {
-                        targetColumnId = column.id
-                        targetColumn = column
-                        break
-                    }
-                }
-                if (targetColumn) break
-            }
-        }
+        const overColumnId = over.id as string
+        const sourceColumnId = activeCard.columnId
 
-        if (!targetColumn) {
-            console.error('Coluna de destino não encontrada:', targetColumnId)
-            return
-        }
+        if (sourceColumnId === overColumnId) return
 
-        // Verificar se o card já está na coluna de destino
-        const sourceCard = findCard(cardId)
-        if (sourceCard && sourceCard.columnId === targetColumnId) {
-            console.log('Card já está na coluna de destino')
-            return
-        }
-
-        try {
-            // Atualizar no backend - usar column_id em vez de status
-            const response = await fetch(`/api/cards/${cardId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    column_id: targetColumnId
-                })
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao mover card')
-            }
-
-            // Atualizar estado local
-            setBoards(prevBoards => 
-                prevBoards.map(board => {
-                    if (board.id !== selectedBoard) return board
-
-                    const updatedColumns = board.columns.map(column => ({
+        // Atualizar posição do card
+        setBoards(prevBoards => 
+            prevBoards.map(board => 
+                board.id === selectedBoard ? {
+                    ...board,
+                    columns: board.columns.map(column => ({
                         ...column,
-                        cards: column.cards.filter(card => card.id !== cardId)
+                        cards: column.id === sourceColumnId 
+                            ? column.cards.filter(card => card.id !== activeCard.id)
+                            : column.id === overColumnId
+                            ? [...column.cards, { ...activeCard, columnId: overColumnId }]
+                            : column.cards
                     }))
-
-                    // Encontrar a coluna de destino e adicionar o card
-                    const targetColumnIndex = updatedColumns.findIndex(col => col.id === targetColumnId)
-                    if (targetColumnIndex !== -1) {
-                        const card = findCard(cardId)
-                        if (card) {
-                            updatedColumns[targetColumnIndex].cards.push({
-                                ...card,
-                                columnId: targetColumnId
-                            })
-                        }
-                    }
-
-                    return {
-                        ...board,
-                        columns: updatedColumns
-                    }
-                })
+                } : board
             )
+        )
 
-            console.log(`Card ${cardId} movido para coluna ${targetColumnId}`)
-        } catch (error) {
-            console.error('Erro ao mover card:', error)
-            // Aqui você poderia mostrar uma notificação de erro
-        }
-    }
-
-    const findCard = (cardId: string): Card | null => {
-        for (const board of boards) {
-            for (const column of board.columns) {
-                const card = column.cards.find(c => c.id === cardId)
-                if (card) return card
-            }
-        }
-        return null
+        // Aqui você pode fazer a chamada para a API para persistir a mudança
+        // updateCardPosition(activeCard.id, overColumnId)
     }
 
     const handleCardClick = (card: Card) => {
@@ -316,220 +195,117 @@ function KanbanContent() {
         setIsCardModalOpen(true)
     }
 
-    const handleFilters = () => {
+    const handleNewCard = (columnId: string) => {
+        // Implementar criação de novo card
+        console.log('Criar novo card na coluna:', columnId)
+    }
+
+    const handleFiltersClick = () => {
         setShowFiltersModal(true)
     }
 
-    const handleApplyFilters = (newFilters: FilterOptions) => {
-        // Os filtros são aplicados automaticamente através do useFilters
-    }
-
-    const handleCreateCard = async (columnId: string) => {
-        const title = prompt('Digite o título do card:')
-        if (!title) return
-
-        try {
-            console.log('Creating card with:', {
-                title,
-                boardId: selectedBoard,
-                columnId,
-                creatorId: user?.id || 'user_1'
-            })
-
-            const response = await fetch('/api/cards', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    title,
-                    boardId: selectedBoard,
-                    columnId,
-                    creatorId: user?.id || 'user_1',
-                    position: 0
-                })
-            })
-
-            if (!response.ok) {
-                throw new Error('Erro ao criar card')
+    // Filtrar cards baseado na busca e filtros
+    const getFilteredCards = (cards: Card[]) => {
+        return cards.filter(card => {
+            // Filtro de busca
+            if (searchTerm && !card.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+                !card.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
+                return false
             }
 
-            const data = await response.json()
-            const newCard = {
-                ...data.card,
-                columnId,
-                assignee: data.card.assignee || undefined,
-                creator: data.card.creator
+            // Aplicar outros filtros se necessário
+            if (hasActiveFilters) {
+                if (filters.priority && filters.priority.length > 0 && !filters.priority.includes(card.priority)) {
+                    return false
+                }
+                if (filters.urgency && filters.urgency.length > 0 && !filters.urgency.includes(card.urgency)) {
+                    return false
+                }
+                if (filters.assignees && filters.assignees.length > 0 && 
+                    (!card.assignee || !filters.assignees.includes(card.assignee.id))) {
+                    return false
+                }
             }
 
-            // Atualizar estado local
-            setBoards(prevBoards => 
-                prevBoards.map(board => {
-                    if (board.id !== selectedBoard) return board
-
-                    return {
-                        ...board,
-                        columns: board.columns.map(column => {
-                            if (column.id === columnId) {
-                                return {
-                                    ...column,
-                                    cards: [newCard, ...column.cards]
-                                }
-                            }
-                            return column
-                        })
-                    }
-                })
-            )
-
-            console.log('Card criado com sucesso:', newCard)
-        } catch (error) {
-            console.error('Erro ao criar card:', error)
-            alert('Erro ao criar card. Tente novamente.')
-        }
-    }
-
-    const filteredColumns = currentBoard?.columns.map(column => ({
-        ...column,
-        cards: column.cards.filter(card => {
-            // Filtro por busca de texto
-            const matchesSearch = !searchTerm || 
-                card.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                card.description?.toLowerCase().includes(searchTerm.toLowerCase())
-
-            // Filtros avançados
-            const matchesPriority = !filters.priority?.length || 
-                filters.priority.includes(card.priority)
-            
-            const matchesUrgency = !filters.urgency?.length || 
-                filters.urgency.includes(card.urgency)
-            
-            const matchesAssignee = !filters.assignees?.length || 
-                (card.assignee && filters.assignees.includes(card.assignee.id))
-            
-            const matchesCreator = !filters.creators?.length || 
-                filters.creators.includes(card.creator.id)
-
-            return matchesSearch && matchesPriority && matchesUrgency && 
-                   matchesAssignee && matchesCreator
+            return true
         })
-    })) || []
+    }
 
     if (loading) {
         return (
-            <div className="p-6">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-dark-700 rounded w-1/4"></div>
-                    <div className="grid grid-cols-4 gap-6">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="space-y-3">
-                                <div className="h-6 bg-dark-700 rounded"></div>
-                                <div className="space-y-2">
-                                    <div className="h-24 bg-dark-700 rounded"></div>
-                                    <div className="h-24 bg-dark-700 rounded"></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
             </div>
         )
     }
 
     return (
-        <div className="p-6 h-full flex flex-col">
+        <div className="h-screen flex flex-col bg-dark-900">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between p-6 border-b border-dark-700">
                 <div className="flex items-center space-x-4">
-                    <h1 className="text-3xl font-bold text-dark-50">Kanban</h1>
-                    <select
-                        value={selectedBoard}
-                        onChange={(e) => setSelectedBoard(e.target.value)}
-                        className="input-field"
-                    >
-                        {boards.map(board => (
-                            <option key={board.id} value={board.id}>
-                                {board.name}
-                            </option>
-                        ))}
-                    </select>
+                    <h1 className="text-2xl font-bold text-dark-50">
+                        {currentBoard?.name || 'Kanban'}
+                    </h1>
+                    {user && (
+                        <span className="text-sm text-dark-400">
+                            Bem-vindo, {user.name}
+                        </span>
+                    )}
                 </div>
 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-4">
+                    {/* Search */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-dark-400 w-4 h-4" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
                         <input
                             type="text"
                             placeholder="Buscar cards..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="input-field pl-10 w-64"
+                            className="pl-10 pr-4 py-2 bg-dark-800 border border-dark-600 rounded-lg text-dark-200 placeholder-dark-500 focus:outline-none focus:border-primary-500"
                         />
                     </div>
-                    <button 
-                        onClick={handleFilters} 
-                        className={`btn-secondary ${hasActiveFilters ? 'bg-primary-500/10 border-primary-500/20 text-primary-400' : ''}`}
+
+                    {/* Filters */}
+                    <button
+                        onClick={handleFiltersClick}
+                        className={`btn-secondary ${hasActiveFilters ? 'bg-primary-500 text-white' : ''}`}
                     >
                         <Filter className="w-4 h-4 mr-2" />
                         Filtros
-                        {hasActiveFilters && (
-                            <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                Ativo
-                            </span>
-                        )}
                     </button>
-                    <button 
-                        onClick={() => {
-                            const firstColumn = currentBoard?.columns[0]
-                            if (firstColumn) {
-                                handleCreateCard(firstColumn.id)
-                            }
-                        }}
+
+                    {/* New Card */}
+                    <button
+                        onClick={() => handleNewCard('backlog')}
                         className="btn-primary"
                     >
                         <Plus className="w-4 h-4 mr-2" />
-                        Novo Card
+                        Nova Demanda
                     </button>
                 </div>
             </div>
 
-            {/* Resumo dos Filtros */}
-            {hasActiveFilters && (
-                <div className="bg-primary-500/10 border border-primary-500/20 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <Filter className="w-4 h-4 text-primary-500" />
-                            <span className="text-sm text-primary-400">Filtros ativos:</span>
-                            <span className="text-sm text-dark-300">{hasActiveFilters ? 'Filtros aplicados' : 'Nenhum filtro'}</span>
-                        </div>
-                        <button
-                            onClick={() => setShowFiltersModal(true)}
-                            className="text-xs text-primary-400 hover:text-primary-300"
-                        >
-                            Editar
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Kanban Board */}
-            <div className="flex-1 overflow-x-auto">
+            <div className="flex-1 overflow-x-auto p-6">
                 <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                    <div className="flex space-x-6 h-full min-w-max">
-                        {filteredColumns.map(column => (
+                    <div className="flex space-x-6 h-full">
+                        {currentBoard?.columns.map((column) => (
                             <KanbanColumn
                                 key={column.id}
-                                column={column}
+                                column={{
+                                    ...column,
+                                    cards: getFilteredCards(column.cards)
+                                }}
                                 onCardClick={handleCardClick}
-                                onCreateCard={handleCreateCard}
+                                onNewCard={() => handleNewCard(column.id)}
                             />
                         ))}
                     </div>
 
                     <DragOverlay>
-                        {activeCard ? (
-                            <KanbanCard card={activeCard} onClick={() => { }} isDragging />
-                        ) : null}
+                        {activeCard ? <KanbanCard card={activeCard} /> : null}
                     </DragOverlay>
                 </DndContext>
             </div>
@@ -560,9 +336,6 @@ function KanbanContent() {
                             
                             console.log('Card atualizado no estado local:', updatedCard)
                             
-                            // Opcional: Recarregar dados do servidor para garantir sincronização
-                            // await fetchBoards()
-                            
                         } catch (error) {
                             console.error('Erro ao atualizar card no estado:', error)
                             // Em caso de erro, recarregar dados do servidor
@@ -579,9 +352,11 @@ function KanbanContent() {
             <AdvancedFiltersModal
                 isOpen={showFiltersModal}
                 onClose={() => setShowFiltersModal(false)}
-                onApplyFilters={handleApplyFilters}
-                context="kanban"
-                currentFilters={filters}
+                onApplyFilters={(newFilters) => {
+                    // Aplicar filtros
+                    console.log('Aplicar filtros:', newFilters)
+                    setShowFiltersModal(false)
+                }}
             />
         </div>
     )
@@ -590,21 +365,8 @@ function KanbanContent() {
 export default function KanbanPage() {
     return (
         <Suspense fallback={
-            <div className="p-6">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-8 bg-dark-700 rounded w-1/4"></div>
-                    <div className="grid grid-cols-4 gap-6">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="space-y-3">
-                                <div className="h-6 bg-dark-700 rounded"></div>
-                                <div className="space-y-2">
-                                    <div className="h-24 bg-dark-700 rounded"></div>
-                                    <div className="h-24 bg-dark-700 rounded"></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
             </div>
         }>
             <KanbanContent />
