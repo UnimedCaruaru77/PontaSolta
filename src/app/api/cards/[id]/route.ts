@@ -35,64 +35,29 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log('=== INÍCIO PUT CARD ===')
-    console.log('Card ID:', params.id)
-    
     const body = await request.json()
-    console.log('Body recebido:', body)
     
-    const {
-      title,
-      description,
-      priority,
-      urgency,
-      highImpact,
-      isProject,
-      assigneeId,
-      startDate,
-      endDate,
-      lecomTicket,
-      status,
-      position,
-      column_id
-    } = body
-
     // Validação básica
     if (!params.id) {
-      console.error('ID do card não fornecido')
       return NextResponse.json({ error: 'ID do card é obrigatório' }, { status: 400 })
     }
 
+    // Mapear apenas os campos que existem na tabela
     const updateData: any = {}
-    if (title !== undefined) updateData.title = title
-    if (description !== undefined) updateData.description = description
-    if (priority !== undefined) updateData.priority = priority
-    if (urgency !== undefined) updateData.urgency = urgency
-    if (highImpact !== undefined) updateData.high_impact = highImpact
-    if (isProject !== undefined) updateData.is_project = isProject
-    if (assigneeId !== undefined) updateData.assignee_id = assigneeId
-    if (startDate !== undefined) updateData.start_date = startDate
-    if (endDate !== undefined) updateData.end_date = endDate
-    if (lecomTicket !== undefined) updateData.lecom_ticket = lecomTicket
-    if (status !== undefined) updateData.status = status
-    if (position !== undefined) updateData.position = position
-    if (column_id !== undefined) updateData.column_id = column_id
+    
+    if (body.title !== undefined) updateData.title = body.title
+    if (body.description !== undefined) updateData.description = body.description
+    if (body.priority !== undefined) updateData.priority = body.priority
+    if (body.urgency !== undefined) updateData.urgency = body.urgency
+    if (body.highImpact !== undefined) updateData.high_impact = body.highImpact
+    if (body.isProject !== undefined) updateData.is_project = body.isProject
+    if (body.assigneeId !== undefined) updateData.assignee_id = body.assigneeId
+    if (body.startDate !== undefined) updateData.start_date = body.startDate
+    if (body.endDate !== undefined) updateData.end_date = body.endDate
+    if (body.lecomTicket !== undefined) updateData.lecom_ticket = body.lecomTicket
 
-    console.log('Dados para atualização:', updateData)
-
-    // Verificar se o card existe primeiro
-    const { data: existingCard, error: checkError } = await supabase
-      .from('cards')
-      .select('id')
-      .eq('id', params.id)
-      .single()
-
-    if (checkError || !existingCard) {
-      console.error('Card não encontrado:', checkError)
-      return NextResponse.json({ error: 'Card não encontrado' }, { status: 404 })
-    }
-
-    console.log('Card existe, atualizando...')
+    // Atualizar timestamp
+    updateData.updated_at = new Date().toISOString()
 
     const { data: card, error } = await supabase
       .from('cards')
@@ -102,21 +67,24 @@ export async function PUT(
       .single()
 
     if (error) {
-      console.error('Erro do Supabase ao atualizar:', error)
+      console.error('Erro Supabase:', error)
       return NextResponse.json({ 
-        error: 'Erro ao atualizar card', 
-        details: error.message 
+        error: 'Erro ao atualizar card',
+        supabaseError: error.message
       }, { status: 500 })
     }
 
-    console.log('Card atualizado com sucesso:', card)
+    if (!card) {
+      return NextResponse.json({ error: 'Card não encontrado' }, { status: 404 })
+    }
+
     return NextResponse.json({ card })
     
   } catch (error) {
-    console.error('Erro interno completo:', error)
+    console.error('Erro interno:', error)
     return NextResponse.json({ 
       error: 'Erro interno do servidor',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 })
   }
 }

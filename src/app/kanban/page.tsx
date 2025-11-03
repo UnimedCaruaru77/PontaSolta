@@ -332,27 +332,18 @@ function KanbanContent() {
                         setSelectedCard(null)
                     }}
                     onSave={async (updatedCard) => {
-                        try {
-                            // Atualizar o card no estado local imediatamente
-                            setBoards(prevBoards => 
-                                prevBoards.map(board => ({
-                                    ...board,
-                                    columns: board.columns.map(column => ({
-                                        ...column,
-                                        cards: column.cards.map(card => 
-                                            card.id === updatedCard.id ? updatedCard : card
-                                        )
-                                    }))
+                        // Atualizar o card no estado local
+                        setBoards(prevBoards => 
+                            prevBoards.map(board => ({
+                                ...board,
+                                columns: board.columns.map(column => ({
+                                    ...column,
+                                    cards: column.cards.map(card => 
+                                        card.id === updatedCard.id ? updatedCard : card
+                                    )
                                 }))
-                            )
-                            
-                            console.log('Card atualizado no estado local:', updatedCard)
-                            
-                        } catch (error) {
-                            console.error('Erro ao atualizar card no estado:', error)
-                            // Em caso de erro, recarregar dados do servidor
-                            await fetchBoards()
-                        }
+                            }))
+                        )
                         
                         setIsCardModalOpen(false)
                         setSelectedCard(null)

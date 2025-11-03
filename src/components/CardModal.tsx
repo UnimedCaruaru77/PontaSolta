@@ -14,10 +14,7 @@ import {
   Trash2,
   Save
 } from 'lucide-react'
-import { useToast } from './ToastContainer'
-import { ButtonSpinner } from './LoadingSpinner'
-import CommentsSystem from './CommentsSystem'
-import AttachmentsSystem, { useAttachments } from './AttachmentsSystem'
+// Removido imports problemáticos temporariamente
 
 interface Card {
   id: string
@@ -59,11 +56,7 @@ interface CardModalProps {
 }
 
 export default function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
-  const { showSuccess, showError } = useToast()
   const [formData, setFormData] = useState<Card>(card)
-  
-  // Anexos
-  const { attachments, loading: loadingAttachments, setAttachments } = useAttachments(card?.id || '', 'card')
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [newChecklistItem, setNewChecklistItem] = useState('')
   const [showLecomForm, setShowLecomForm] = useState(false)
@@ -144,7 +137,7 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
       console.log('Resposta da API ao salvar card:', data)
       console.log('Card atualizado:', data.card)
       
-      showSuccess('Card Atualizado!', 'As alterações foram salvas com sucesso')
+      alert('Card atualizado com sucesso!')
       
       if (onSave) {
         onSave(data.card)
@@ -154,7 +147,7 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
 
     } catch (error) {
       console.error('Erro ao salvar card:', error)
-      showError('Erro ao Salvar', 'Ocorreu um erro ao salvar as alterações. Tente novamente.')
+      alert('Erro ao salvar: ' + (error instanceof Error ? error.message : 'Erro desconhecido'))
     } finally {
       setLoading(false)
     }
@@ -559,23 +552,11 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
               </button>
             </div>
 
-            {/* Sistema de Anexos */}
+            {/* Funcionalidades avançadas serão implementadas em breve */}
             <div className="border-t border-dark-700 pt-6">
-              <AttachmentsSystem
-                entityId={card.id}
-                entityType="card"
-                attachments={attachments}
-                onAttachmentsChange={setAttachments}
-              />
-            </div>
-
-            {/* Sistema de Comentários */}
-            <div className="border-t border-dark-700 pt-6">
-              <CommentsSystem
-                entityId={card.id}
-                entityType="card"
-                currentUserId="user_1" // TODO: Pegar do contexto de autenticação
-              />
+              <p className="text-dark-400 text-center py-4">
+                💬 Comentários e 📎 Anexos serão implementados em breve
+              </p>
             </div>
           </div>
         </div>
