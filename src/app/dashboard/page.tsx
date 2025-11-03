@@ -14,9 +14,11 @@ import {
   Plus,
   FolderPlus,
   Kanban,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
+import ExportModal from '@/components/ExportModal'
 
 interface DashboardStats {
   totalCards: number
@@ -73,15 +75,82 @@ export default function DashboardPage() {
   }
 
   const [showFiltersModal, setShowFiltersModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const handleFilters = () => {
     setShowFiltersModal(true)
+  }
+
+  const handleExport = () => {
+    setShowExportModal(true)
   }
 
   const handleApplyFilters = (filters: any) => {
     console.log('Filtros aplicados no Dashboard:', filters)
     // Aqui você implementaria a lógica para filtrar os dados do dashboard
     // Por exemplo, recarregar as estatísticas com os filtros aplicados
+  }
+
+  // Preparar dados para exportação
+  const getExportData = () => {
+    const dashboardData = [
+      {
+        metric: 'Total de Cards',
+        value: stats.totalCards,
+        category: 'Geral',
+        created_at: new Date().toISOString()
+      },
+      {
+        metric: 'Em Andamento',
+        value: stats.inProgress,
+        category: 'Status',
+        created_at: new Date().toISOString()
+      },
+      {
+        metric: 'Vencidas',
+        value: stats.overdue,
+        category: 'Status',
+        created_at: new Date().toISOString()
+      },
+      {
+        metric: 'Concluídas',
+        value: stats.completed,
+        category: 'Status',
+        created_at: new Date().toISOString()
+      },
+      {
+        metric: 'Alta Prioridade',
+        value: stats.highPriority,
+        category: 'Prioridade',
+        created_at: new Date().toISOString()
+      },
+      {
+        metric: 'Urgentes',
+        value: stats.urgent,
+        category: 'Urgência',
+        created_at: new Date().toISOString()
+      }
+    ]
+
+    // Adicionar dados de atividade recente
+    const activityData = stats.recentActivity.map(activity => ({
+      title: activity.title,
+      status: activity.status,
+      creator: activity.creator.name,
+      updated_at: activity.updated_at,
+      created_at: activity.updated_at
+    }))
+
+    // Adicionar dados de performance das equipes
+    const teamData = stats.teamPerformance.map(team => ({
+      name: team.name,
+      performance: team.performance,
+      completedCards: team.completedCards,
+      totalCards: team.totalCards,
+      created_at: new Date().toISOString()
+    }))
+
+    return [...dashboardData, ...activityData, ...teamData]
   }
 
   useEffect(() => {
@@ -151,6 +220,10 @@ export default function DashboardPage() {
           <button onClick={handleFilters} className="btn-secondary">
             <Filter className="w-4 h-4 mr-2" />
             Filtros
+          </button>
+          <button onClick={handleExport} className="btn-secondary">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
           </button>
           <button onClick={handleReports} className="btn-primary">
             <BarChart3 className="w-4 h-4 mr-2" />
@@ -386,6 +459,15 @@ export default function DashboardPage() {
         onClose={() => setShowFiltersModal(false)}
         onApplyFilters={handleApplyFilters}
         context="dashboard"
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        context="dashboard"
+        data={getExportData()}
+        title="Dashboard_Metricas"
       />
     </div>
   )

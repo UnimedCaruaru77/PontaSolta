@@ -3,12 +3,13 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core'
-import { Plus, Filter, Search } from 'lucide-react'
+import { Plus, Filter, Search, Download } from 'lucide-react'
 import KanbanColumn from '@/components/KanbanColumn'
 import KanbanCard from '@/components/KanbanCard'
 import CardModal from '@/components/CardModal'
 import SimpleCreateModal from '@/components/SimpleCreateModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
+import ExportModal from '@/components/ExportModal'
 import { useAuth } from '@/hooks/useAuth'
 
 interface Card {
@@ -64,6 +65,7 @@ function KanbanContent() {
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [showFiltersModal, setShowFiltersModal] = useState(false)
+    const [showExportModal, setShowExportModal] = useState(false)
     const [filters, setFilters] = useState<any>({})
     const hasActiveFilters = false
 
@@ -231,6 +233,27 @@ function KanbanContent() {
         setShowFiltersModal(true)
     }
 
+    const handleExportClick = () => {
+        setShowExportModal(true)
+    }
+
+    // Preparar dados para exportação
+    const getExportData = () => {
+        const allCards = currentBoard?.columns.flatMap(column => 
+            column.cards.map(card => ({
+                ...card,
+                column: column.name,
+                board: currentBoard.name,
+                assignee_name: card.assignee?.name || '',
+                creator_name: card.creator?.name || '',
+                priority_label: card.priority === 'HIGH' ? 'Alta' : card.priority === 'MEDIUM' ? 'Média' : 'Baixa',
+                urgency_label: card.urgency === 'URGENT' ? 'Urgente' : 'Não Urgente'
+            }))
+        ) || []
+        
+        return getFilteredCards(allCards)
+    }
+
     // Filtrar cards baseado na busca
     const getFilteredCards = (cards: Card[]) => {
         return cards.filter(card => {
@@ -286,6 +309,15 @@ function KanbanContent() {
                     >
                         <Filter className="w-4 h-4 mr-2" />
                         Filtros
+                    </button>
+
+                    {/* Export */}
+                    <button
+                        onClick={handleExportClick}
+                        className="btn-secondary"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        Exportar
                     </button>
 
                     {/* New Card */}
@@ -369,8 +401,18 @@ function KanbanContent() {
                         setFilters(newFilters)
                         setShowFiltersModal(false)
                     }}
+                    context="kanban"
                 />
             )}
+
+            {/* Export Modal */}
+            <ExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                context="kanban"
+                data={getExportData()}
+                title={`Kanban_${currentBoard?.name.replace(/\s+/g, '_') || 'Board'}`}
+            />
         </div>
     )
 }

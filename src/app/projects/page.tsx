@@ -15,10 +15,12 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Target
+  Target,
+  Download
 } from 'lucide-react'
 import CreateProjectModal from '@/components/CreateProjectModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
+import ExportModal from '@/components/ExportModal'
 import { useToast } from '@/components/ToastContainer'
 import { useFilters } from '@/hooks/useFilters'
 
@@ -74,6 +76,7 @@ function ProjectsContent() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showFiltersModal, setShowFiltersModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const { showSuccess } = useToast()
   const { filters, hasActiveFilters } = useFilters({ data: projects })
 
@@ -86,8 +89,28 @@ function ProjectsContent() {
     setShowFiltersModal(true)
   }
 
+  const handleExport = () => {
+    setShowExportModal(true)
+  }
+
   const handleApplyFilters = (newFilters: FilterOptions) => {
     // Os filtros são aplicados automaticamente através do useFilters
+  }
+
+  // Preparar dados para exportação
+  const getExportData = () => {
+    return filteredProjects.map(project => ({
+      ...project,
+      status_label: getStatusLabel(project.status),
+      methodology_label: getMethodologyLabel(project.methodology),
+      priority_label: project.priority === 'HIGH' ? 'Alta' : project.priority === 'MEDIUM' ? 'Média' : 'Baixa',
+      owner_name: project.owner.name,
+      collaborators_count: project.collaborators.length,
+      collaborators_names: project.collaborators.map(c => c.name).join(', '),
+      start_date: project.startDate,
+      end_date: project.endDate,
+      created_at: project.createdAt
+    }))
   }
 
   const handleEditProject = (project: Project) => {
@@ -327,10 +350,16 @@ function ProjectsContent() {
             Gerencie e acompanhe todos os projetos da organização
           </p>
         </div>
-        <button onClick={handleNewProject} className="btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Projeto
-        </button>
+        <div className="flex items-center space-x-3">
+          <button onClick={handleExport} className="btn-secondary">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </button>
+          <button onClick={handleNewProject} className="btn-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Projeto
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -496,6 +525,15 @@ function ProjectsContent() {
         onApplyFilters={handleApplyFilters}
         context="projects"
         currentFilters={filters}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        context="projects"
+        data={getExportData()}
+        title="Projetos"
       />
     </div>
   )

@@ -9,9 +9,12 @@ import {
   User,
   Filter,
   Plus,
-  ArrowRight
+  ArrowRight,
+  Download
 } from 'lucide-react'
 import { cn, getCardPriorityClass, formatDate, isOverdue } from '@/lib/utils'
+import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
+import ExportModal from '@/components/ExportModal'
 
 interface Card {
   id: string
@@ -44,6 +47,9 @@ export default function MySpacePage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'my-tasks' | 'delegated'>('my-tasks')
   const [filter, setFilter] = useState<'all' | 'overdue' | 'today' | 'week'>('all')
+  const [showFiltersModal, setShowFiltersModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState<any>({})
 
   const handleNewCard = () => {
     // Implementar criação de novo card
@@ -51,8 +57,30 @@ export default function MySpacePage() {
   }
 
   const handleFilters = () => {
-    // Implementar filtros avançados
-    console.log('Abrir filtros avançados')
+    setShowFiltersModal(true)
+  }
+
+  const handleExport = () => {
+    setShowExportModal(true)
+  }
+
+  const handleApplyFilters = (filters: any) => {
+    setAdvancedFilters(filters)
+    console.log('Filtros aplicados:', filters)
+  }
+
+  // Preparar dados para exportação
+  const getExportData = () => {
+    const currentCards = activeTab === 'my-tasks' ? myCards : delegatedCards
+    return filteredCards.map(card => ({
+      ...card,
+      assignee_name: card.assignee?.name || '',
+      creator_name: card.creator?.name || '',
+      priority_label: card.priority === 'HIGH' ? 'Alta' : card.priority === 'MEDIUM' ? 'Média' : 'Baixa',
+      urgency_label: card.urgency === 'URGENT' ? 'Urgente' : 'Não Urgente',
+      is_overdue: card.endDate ? isOverdue(card.endDate) : false,
+      board_name: card.boardName
+    }))
   }
 
   const handleCreateNewTask = () => {
@@ -206,10 +234,16 @@ export default function MySpacePage() {
             Suas tarefas e delegações em um só lugar
           </p>
         </div>
-        <button onClick={handleNewCard} className="btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Card
-        </button>
+        <div className="flex items-center space-x-3">
+          <button onClick={handleExport} className="btn-secondary">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </button>
+          <button onClick={handleNewCard} className="btn-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Card
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -278,9 +312,17 @@ export default function MySpacePage() {
             <option value="today">Hoje</option>
             <option value="week">Esta Semana</option>
           </select>
-          <button onClick={handleFilters} className="btn-secondary">
+          <button 
+            onClick={handleFilters} 
+            className={`btn-secondary ${Object.keys(advancedFilters).length > 0 ? 'bg-primary-500/10 border-primary-500/20 text-primary-400' : ''}`}
+          >
             <Filter className="w-4 h-4 mr-2" />
             Filtros
+            {Object.keys(advancedFilters).length > 0 && (
+              <span className="ml-2 bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+                Ativo
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -330,6 +372,24 @@ export default function MySpacePage() {
           </div>
         )}
       </div>
+
+      {/* Advanced Filters Modal */}
+      <AdvancedFiltersModal
+        isOpen={showFiltersModal}
+        onClose={() => setShowFiltersModal(false)}
+        onApplyFilters={handleApplyFilters}
+        context="my-space"
+        currentFilters={advancedFilters}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        context="my-space"
+        data={getExportData()}
+        title={`Meu_Espaco_${activeTab === 'my-tasks' ? 'Minhas_Tarefas' : 'Delegadas'}`}
+      />
     </div>
   )
 }

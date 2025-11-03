@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import { ToastProvider } from './ToastContainer'
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/hooks/useKeyboardShortcuts'
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode
@@ -14,6 +15,9 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
   const pathname = usePathname()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Inicializar atalhos de teclado
+  useKeyboardShortcuts()
 
   // Páginas que não precisam de autenticação
   const publicPages = useMemo(() => ['/login', '/'], [])
@@ -90,6 +94,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
         <main className="flex-1 overflow-auto">
           {children}
         </main>
+        {/* Modal de ajuda de atalhos */}
+        <KeyboardShortcutsHelp />
       </div>
     </ToastProvider>
   )
