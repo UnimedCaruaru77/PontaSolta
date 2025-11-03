@@ -9,7 +9,13 @@ import {
   Clock, 
   FolderKanban,
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Flag,
+  Zap,
+  Target,
+  GripVertical,
+  MessageCircle,
+  Paperclip
 } from 'lucide-react'
 import { cn, getCardPriorityClass, formatDate, isOverdue } from '@/lib/utils'
 
@@ -70,112 +76,156 @@ export default function KanbanCard({ card, onClick, isDragging = false }: Kanban
     onClick()
   }
 
+  const getPriorityColor = () => {
+    switch (card.priority) {
+      case 'HIGH': return 'border-l-accent-red bg-gradient-to-r from-accent-red/5 to-transparent'
+      case 'MEDIUM': return 'border-l-accent-orange bg-gradient-to-r from-accent-orange/5 to-transparent'
+      case 'LOW': return 'border-l-green-500 bg-gradient-to-r from-green-500/5 to-transparent'
+      default: return 'border-l-dark-600'
+    }
+  }
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       className={cn(
-        'card-kanban group select-none relative',
-        priorityClass,
-        isDragging || isSortableDragging ? 'opacity-50 rotate-3 scale-105' : '',
-        overdue ? 'border-accent-red' : ''
+        'group select-none relative transition-all duration-200 ease-out',
+        'bg-dark-800 border border-dark-700 rounded-xl shadow-sm hover:shadow-lg',
+        'border-l-4', getPriorityColor(),
+        isDragging || isSortableDragging ? 'opacity-60 rotate-2 scale-105 shadow-2xl z-50' : '',
+        overdue ? 'ring-2 ring-accent-red/30 border-accent-red/50' : '',
+        'hover:border-dark-600 hover:-translate-y-1'
       )}
     >
-      {/* Drag Handle - área específica para drag */}
+      {/* Drag Handle */}
       <div
         {...listeners}
-        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-3 right-3 p-1 rounded-md cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-dark-700"
         title="Arrastar card"
       >
-        <div className="w-3 h-3 grid grid-cols-2 gap-0.5">
-          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
-          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
-          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
-          <div className="w-1 h-1 bg-dark-400 rounded-full"></div>
-        </div>
+        <GripVertical className="w-4 h-4 text-dark-400" />
       </div>
 
-      {/* Área clicável para abrir modal */}
+      {/* Card Content */}
       <div
         onClick={handleClick}
-        className="cursor-pointer p-4"
+        className="cursor-pointer p-4 pr-10"
       >
-      {/* Card Header */}
-      <div className="flex items-start justify-between mb-3">
-        <h4 className="font-medium text-dark-50 text-sm leading-tight flex-1 pr-2">
-          {card.title}
-        </h4>
-        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {card.isProject && (
-            <FolderKanban className="w-4 h-4 text-secondary-500" title="Projeto" />
-          )}
-          {card.lecomTicket && (
-            <ExternalLink className="w-4 h-4 text-primary-500" title={`LECOM: ${card.lecomTicket}`} />
-          )}
+        {/* Header com badges */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              {card.isProject && (
+                <div className="flex items-center space-x-1 bg-secondary-500/10 text-secondary-400 px-2 py-1 rounded-md text-xs font-medium">
+                  <FolderKanban className="w-3 h-3" />
+                  <span>Projeto</span>
+                </div>
+              )}
+              {card.lecomTicket && (
+                <div className="flex items-center space-x-1 bg-primary-500/10 text-primary-400 px-2 py-1 rounded-md text-xs font-medium">
+                  <ExternalLink className="w-3 h-3" />
+                  <span>{card.lecomTicket}</span>
+                </div>
+              )}
+            </div>
+            
+            <h4 className="font-semibold text-dark-50 text-sm leading-tight mb-1 group-hover:text-primary-400 transition-colors">
+              {card.title}
+            </h4>
+          </div>
         </div>
-      </div>
 
-      {/* Description */}
-      {card.description && (
-        <p className="text-dark-400 text-xs mb-3 line-clamp-2">
-          {card.description}
-        </p>
-      )}
+        {/* Description */}
+        {card.description && (
+          <p className="text-dark-400 text-xs mb-4 line-clamp-2 leading-relaxed">
+            {card.description}
+          </p>
+        )}
 
-      {/* Priority & Urgency Indicators */}
-      <div className="flex items-center space-x-2 mb-3">
-        {card.priority === 'HIGH' && (
-          <span className="bg-accent-red/10 text-accent-red text-xs px-2 py-1 rounded-full border border-accent-red/20">
-            Alta Prioridade
-          </span>
-        )}
-        {card.urgency === 'URGENT' && (
-          <span className="bg-accent-orange/10 text-accent-orange text-xs px-2 py-1 rounded-full border border-accent-orange/20">
-            Urgente
-          </span>
-        )}
-        {card.highImpact && (
-          <span className="bg-accent-yellow/10 text-accent-yellow text-xs px-2 py-1 rounded-full border border-accent-yellow/20">
-            Alto Impacto
-          </span>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-dark-400">
-        <div className="flex items-center space-x-2">
-          {card.assignee && (
-            <div className="flex items-center space-x-1" title={card.assignee.name}>
-              <User className="w-3 h-3" />
-              <span className="truncate max-w-[80px]">
-                {card.assignee.name.split(' ')[0]}
-              </span>
+        {/* Priority & Status Indicators */}
+        <div className="flex items-center flex-wrap gap-1 mb-4">
+          {card.priority === 'HIGH' && (
+            <div className="flex items-center space-x-1 bg-accent-red/10 text-accent-red px-2 py-1 rounded-full text-xs font-medium border border-accent-red/20">
+              <Flag className="w-3 h-3" />
+              <span>Alta</span>
+            </div>
+          )}
+          {card.urgency === 'URGENT' && (
+            <div className="flex items-center space-x-1 bg-accent-orange/10 text-accent-orange px-2 py-1 rounded-full text-xs font-medium border border-accent-orange/20">
+              <Zap className="w-3 h-3" />
+              <span>Urgente</span>
+            </div>
+          )}
+          {card.highImpact && (
+            <div className="flex items-center space-x-1 bg-accent-yellow/10 text-accent-yellow px-2 py-1 rounded-full text-xs font-medium border border-accent-yellow/20">
+              <Target className="w-3 h-3" />
+              <span>Alto Impacto</span>
             </div>
           )}
         </div>
-        
-        <div className="flex items-center space-x-2">
-          {card.endDate && (
-            <div className={cn(
-              "flex items-center space-x-1",
-              overdue ? "text-accent-red" : "text-dark-400"
-            )} title={`Prazo: ${formatDate(card.endDate)}`}>
-              <Calendar className="w-3 h-3" />
-              <span>{formatDate(card.endDate)}</span>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          {/* Assignee */}
+          <div className="flex items-center space-x-2">
+            {card.assignee ? (
+              <div className="flex items-center space-x-2" title={card.assignee.name}>
+                <div className="w-6 h-6 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                  {getInitials(card.assignee.name)}
+                </div>
+                <span className="text-xs text-dark-300 font-medium">
+                  {card.assignee.name.split(' ')[0]}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 text-dark-500">
+                <div className="w-6 h-6 border-2 border-dashed border-dark-600 rounded-full flex items-center justify-center">
+                  <User className="w-3 h-3" />
+                </div>
+                <span className="text-xs">Não atribuído</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Date and Actions */}
+          <div className="flex items-center space-x-2">
+            {/* Mock indicators for future features */}
+            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MessageCircle className="w-3 h-3 text-dark-500" title="0 comentários" />
+              <Paperclip className="w-3 h-3 text-dark-500" title="0 anexos" />
             </div>
-          )}
+            
+            {card.endDate && (
+              <div className={cn(
+                "flex items-center space-x-1 px-2 py-1 rounded-md text-xs font-medium",
+                overdue 
+                  ? "bg-accent-red/10 text-accent-red border border-accent-red/20" 
+                  : "bg-dark-700 text-dark-300"
+              )} title={`Prazo: ${formatDate(card.endDate)}`}>
+                <Calendar className="w-3 h-3" />
+                <span>{formatDate(card.endDate)}</span>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Overdue Alert */}
+        {overdue && (
+          <div className="mt-3 flex items-center space-x-2 bg-accent-red/10 border border-accent-red/20 rounded-lg p-2">
+            <AlertTriangle className="w-4 h-4 text-accent-red" />
+            <span className="text-xs text-accent-red font-medium">Prazo vencido</span>
+          </div>
+        )}
       </div>
 
-      {/* Overdue indicator */}
-      {overdue && (
-        <div className="mt-2 flex items-center space-x-1 text-accent-red text-xs">
-          <AlertTriangle className="w-3 h-3" />
-          <span>Vencido</span>
-        </div>
-      )}
-      </div>
+      {/* Hover Effect Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary-500/0 to-primary-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl pointer-events-none" />
     </div>
   )
 }
