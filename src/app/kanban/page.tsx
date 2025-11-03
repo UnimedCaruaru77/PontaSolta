@@ -364,21 +364,42 @@ function KanbanContent() {
                         setSelectedCard(null)
                     }}
                     onSave={async (updatedCard) => {
-                        // Atualizar o card no estado local
-                        setBoards(prevBoards => 
-                            prevBoards.map(board => ({
-                                ...board,
-                                columns: board.columns.map(column => ({
-                                    ...column,
-                                    cards: column.cards.map(card => 
-                                        card.id === updatedCard.id ? updatedCard : card
-                                    )
+                        try {
+                            console.log('🔄 Atualizando card no estado local:', updatedCard)
+                            
+                            // Garantir que o card atualizado tenha a estrutura correta
+                            const cardToUpdate = {
+                                ...selectedCard, // Manter dados originais
+                                ...updatedCard,  // Sobrescrever com dados atualizados
+                                // Garantir campos essenciais
+                                id: updatedCard.id || selectedCard?.id,
+                                columnId: updatedCard.columnId || selectedCard?.columnId,
+                                position: updatedCard.position || selectedCard?.position || 0
+                            }
+                            
+                            console.log('📝 Card formatado para update:', cardToUpdate)
+                            
+                            // Atualizar o card no estado local
+                            setBoards(prevBoards => 
+                                prevBoards.map(board => ({
+                                    ...board,
+                                    columns: board.columns.map(column => ({
+                                        ...column,
+                                        cards: column.cards.map(card => 
+                                            card.id === cardToUpdate.id ? cardToUpdate : card
+                                        )
+                                    }))
                                 }))
-                            }))
-                        )
-                        
-                        setIsCardModalOpen(false)
-                        setSelectedCard(null)
+                            )
+                            
+                            console.log('✅ Estado local atualizado com sucesso')
+                            
+                        } catch (error) {
+                            console.error('❌ Erro ao atualizar estado local:', error)
+                        } finally {
+                            setIsCardModalOpen(false)
+                            setSelectedCard(null)
+                        }
                     }}
                 />
             )}

@@ -96,6 +96,11 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
     setLoading(true)
     
     try {
+      // Validação básica antes de enviar
+      if (!formData.title?.trim()) {
+        alert('Título é obrigatório')
+        return
+      }
       console.log('Salvando card com dados:', {
         title: formData.title,
         description: formData.description,
@@ -138,10 +143,31 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
       
       if (data.success && data.card) {
         console.log('✅ Card atualizado com sucesso:', data.card)
+        
+        // Garantir que o card retornado tenha a estrutura correta para o frontend
+        const updatedCard = {
+          ...card, // Manter estrutura original
+          ...data.card, // Sobrescrever com dados atualizados
+          // Garantir campos essenciais
+          id: data.card.id || card.id,
+          columnId: data.card.columnId || card.columnId,
+          position: data.card.position || card.position,
+          // Converter campos do backend se necessário
+          highImpact: data.card.highImpact ?? data.card.high_impact ?? card.highImpact,
+          isProject: data.card.isProject ?? data.card.is_project ?? card.isProject,
+          startDate: data.card.startDate ?? data.card.start_date ?? card.startDate,
+          endDate: data.card.endDate ?? data.card.end_date ?? card.endDate,
+          lecomTicket: data.card.lecomTicket ?? data.card.lecom_ticket ?? card.lecomTicket,
+          assignee: data.card.assignee || formData.assignee || card.assignee,
+          creator: data.card.creator || card.creator
+        }
+        
+        console.log('📝 Card formatado para retorno:', updatedCard)
+        
         alert('Card atualizado com sucesso!')
         
         if (onSave) {
-          onSave(data.card)
+          onSave(updatedCard)
         }
         
         onClose()

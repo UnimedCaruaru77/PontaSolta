@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import { ToastProvider } from './ToastContainer'
 import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/hooks/useKeyboardShortcuts'
+import ErrorBoundary from './ErrorBoundary'
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode
@@ -88,15 +89,19 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
 
   // Se está autenticado, renderizar com sidebar
   return (
-    <ToastProvider>
-      <div className="flex h-screen bg-slate-900">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-        {/* Modal de ajuda de atalhos */}
-        <KeyboardShortcutsHelp />
-      </div>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <div className="flex h-screen bg-slate-900">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </main>
+          {/* Modal de ajuda de atalhos */}
+          <KeyboardShortcutsHelp />
+        </div>
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }
