@@ -37,6 +37,11 @@ export async function PUT(
   try {
     const body = await request.json()
     
+    console.log('🔄 API PUT /api/cards/[id] - Dados recebidos:', {
+      cardId: params.id,
+      body: body
+    })
+    
     // Validação básica
     if (!params.id) {
       return NextResponse.json({ error: 'ID do card é obrigatório' }, { status: 400 })
@@ -51,13 +56,15 @@ export async function PUT(
     if (body.urgency !== undefined) updateData.urgency = body.urgency
     if (body.highImpact !== undefined) updateData.high_impact = body.highImpact
     if (body.isProject !== undefined) updateData.is_project = body.isProject
-    if (body.assigneeId !== undefined) updateData.assignee_id = body.assigneeId
-    if (body.startDate !== undefined) updateData.start_date = body.startDate
-    if (body.endDate !== undefined) updateData.end_date = body.endDate
-    if (body.lecomTicket !== undefined) updateData.lecom_ticket = body.lecomTicket
+    if (body.assigneeId !== undefined) updateData.assignee_id = body.assigneeId || null
+    if (body.startDate !== undefined) updateData.start_date = body.startDate || null
+    if (body.endDate !== undefined) updateData.end_date = body.endDate || null
+    if (body.lecomTicket !== undefined) updateData.lecom_ticket = body.lecomTicket || null
 
     // Atualizar timestamp
     updateData.updated_at = new Date().toISOString()
+
+    console.log('📝 Dados mapeados para update:', updateData)
 
     const { data: card, error } = await supabase
       .from('cards')
@@ -67,21 +74,41 @@ export async function PUT(
       .single()
 
     if (error) {
-      console.error('Erro Supabase:', error)
+      console.error('❌ Erro Supabase:', error)
       return NextResponse.json({ 
         error: 'Erro ao atualizar card',
-        supabaseError: error.message
+        supabaseError: error.message,
+        details: error
       }, { status: 500 })
     }
 
     if (!card) {
+      console.error('❌ Card não encontrado após update')
       return NextResponse.json({ error: 'Card não encontrado' }, { status: 404 })
     }
 
-    return NextResponse.json({ card })
+    console.log('✅ Card atualizado com sucesso:', card)
+
+    // Converter campos do banco para o formato do frontend
+    const formattedCard = {
+      ...card,
+      highImpact: card.high_impact,
+      isProject: card.is_project,
+      assigneeId: card.assignee_id,
+      startDate: card.start_date,
+      endDate: card.end_date,
+      lecomTicket: card.lecom_ticket,
+      createdAt: card.created_at,
+      updatedAt: card.updated_at
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      card: formattedCard 
+    })
     
   } catch (error) {
-    console.error('Erro interno:', error)
+    console.error('❌ Erro interno na API:', error)
     return NextResponse.json({ 
       error: 'Erro interno do servidor',
       details: error instanceof Error ? error.message : String(error)

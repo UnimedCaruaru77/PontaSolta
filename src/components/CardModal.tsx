@@ -14,7 +14,7 @@ import {
   Trash2,
   Save
 } from 'lucide-react'
-// Removido imports problemáticos temporariamente
+import { ButtonSpinner } from './LoadingSpinner'
 
 interface Card {
   id: string
@@ -134,16 +134,20 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
 
       const data = await response.json()
       
-      console.log('Resposta da API ao salvar card:', data)
-      console.log('Card atualizado:', data.card)
+      console.log('✅ Resposta da API ao salvar card:', data)
       
-      alert('Card atualizado com sucesso!')
-      
-      if (onSave) {
-        onSave(data.card)
+      if (data.success && data.card) {
+        console.log('✅ Card atualizado com sucesso:', data.card)
+        alert('Card atualizado com sucesso!')
+        
+        if (onSave) {
+          onSave(data.card)
+        }
+        
+        onClose()
+      } else {
+        throw new Error(data.error || 'Resposta inválida da API')
       }
-      
-      onClose()
 
     } catch (error) {
       console.error('Erro ao salvar card:', error)
@@ -215,16 +219,18 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
   }
 
   const handleAssigneeChange = (assigneeId: string) => {
-    // Implementar mudança de responsável
     console.log('Alterar responsável para:', assigneeId)
-    // Aqui você buscaria os dados do usuário e atualizaria o formData
+    
+    // Mapear IDs para dados dos usuários (mock data)
+    const users = {
+      '1': { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
+      '2': { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
+      '3': { id: '3', name: 'Marcos Barreto', email: 'marcos.barreto@unimed.com' }
+    }
+    
     setFormData(prev => ({
       ...prev,
-      assignee: assigneeId ? {
-        id: assigneeId,
-        name: 'Nome do Usuário', // Buscar do backend
-        email: 'email@exemplo.com' // Buscar do backend
-      } : undefined
+      assignee: assigneeId ? users[assigneeId as keyof typeof users] : undefined
     }))
   }
 
