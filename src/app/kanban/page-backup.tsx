@@ -54,38 +54,88 @@ interface Board {
 function KanbanContent() {
     const { user } = useAuth()
     const searchParams = useSearchParams()
-    const teamId = searchParams.get('teamId')
-    
+    const teamId = searchParams.get('team')
+
     const [boards, setBoards] = useState<Board[]>([])
     const [selectedBoard, setSelectedBoard] = useState<string>('')
-    const [loading, setLoading] = useState(true)
+    const [activeCard, setActiveCard] = useState<Card | null>(null)
     const [selectedCard, setSelectedCard] = useState<Card | null>(null)
     const [isCardModalOpen, setIsCardModalOpen] = useState(false)
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [createColumnId, setCreateColumnId] = useState('')
+    const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState('')
     const [showFiltersModal, setShowFiltersModal] = useState(false)
     const [showExportModal, setShowExportModal] = useState(false)
-    const [createColumnId, setCreateColumnId] = useState<string>('')
-    const [activeCard, setActiveCard] = useState<Card | null>(null)
-    const [searchTerm, setSearchTerm] = useState('')
-    const [filters, setFilters] = useState({})
-    
+    const [filters, setFilters] = useState<any>({})
     const hasActiveFilters = false
 
     const fetchBoards = async () => {
         try {
             setLoading(true)
-            const url = teamId ? '/api/boards?teamId=' + teamId : '/api/boards'
+            const url = teamId ? `/api/boards?teamId=${teamId}` : '/api/boards'
             const response = await fetch(url)
             if (!response.ok) {
-                throw new Error('Falha ao carregar boards')
+                throw new Error('Erro ao carregar boards')
             }
             const data = await response.json()
-            
-            if (data.success && data.boards) {
+
+            if (data.boards && data.boards.length > 0) {
                 setBoards(data.boards)
-                if (data.boards.length > 0 && !selectedBoard) {
+                if (!selectedBoard) {
                     setSelectedBoard(data.boards[0].id)
                 }
+            } else {
+                // Fallback para dados mockados se não houver boards
+                const mockBoards: Board[] = [
+                    {
+                        id: '1',
+                        name: 'Service Desk Operadora (Offline)',
+                        columns: [
+                            {
+                                id: 'backlog',
+                                name: 'Backlog',
+                                position: 0,
+                                cards: [
+                                    {
+                                        id: 'card1',
+                                        title: 'Configurar novo computador',
+                                        description: 'Instalar sistema operacional e programas básicos',
+                                        priority: 'MEDIUM',
+                                        urgency: 'NOT_URGENT',
+                                        highImpact: false,
+                                        isProject: false,
+                                        assignee: { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
+                                        creator: { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
+                                        endDate: '2024-11-01',
+                                        position: 0,
+                                        columnId: 'backlog'
+                                    }
+                                ]
+                            },
+                            {
+                                id: 'in_progress',
+                                name: 'Em Andamento',
+                                position: 1,
+                                cards: []
+                            },
+                            {
+                                id: 'review',
+                                name: 'Em Revisão',
+                                position: 2,
+                                cards: []
+                            },
+                            {
+                                id: 'done',
+                                name: 'Concluído',
+                                position: 3,
+                                cards: []
+                            }
+                        ]
+                    }
+                ]
+                setBoards(mockBoards)
+                setSelectedBoard(mockBoards[0].id)
             }
         } catch (error) {
             console.error('Erro ao carregar boards:', error)
@@ -103,7 +153,7 @@ function KanbanContent() {
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event
         const card = currentBoard?.columns
-            .flatMap(column => column.cards)
+            .flatMap(col => col.cards)
             .find(card => card.id === active.id)
         setActiveCard(card || null)
     }
@@ -115,37 +165,35 @@ function KanbanContent() {
         if (!over) return
 
         const activeCard = currentBoard?.columns
-            .flatMap(column => column.cards)
+            .flatMap(col => col.cards)
             .find(card => card.id === active.id)
 
         if (!activeCard) return
 
-        const targetColumnId = over.id as string
-        
-        if (activeCard.columnId !== targetColumnId) {
-            setBoards(prevBoards =>
-                prevBoards.map(board =>
-                    board.id === selectedBoard ? {
-                        ...board,
-                        columns: board.columns.map(column => {
-                            if (column.id === activeCard.columnId) {
-                                return {
-                                    ...column,
-                                    cards: column.cards.filter(card => card.id !== activeCard.id)
-                                }
-                            }
-                            if (column.id === targetColumnId) {
-                                return {
-                                    ...column,
-                                    cards: [...column.cards, { ...activeCard, columnId: targetColumnId }]
-                                }
-                            }
-                            return column
-                        })
-                    } : board
-                )
+        const overColumnId = over.id as string
+        const sourceColumnId = activeCard.columnId
+
+        if (sourceColumnId === overColumnId) return
+
+        // Atualizar posição do card
+        setBoards(prevBoards =>
+            prevBoards.map(board =>
+                board.id === selectedBoard ? {
+                    ...board,
+                    columns: board.columns.map(column => ({
+                        ...column,
+                        cards: column.id === sourceColumnId
+                            ? column.cards.filter(card => card.id !== activeCard.id)
+                            : column.id === overColumnId
+                                ? [...column.cards, { ...activeCard, columnId: overColumnId }]
+                                : column.cards
+                    }))
+                } : board
             )
-        }
+        )
+
+        // Aqui você pode fazer a chamada para a API para persistir a mudança
+        // updateCardPosition(activeCard.id, overColumnId)
     }
 
     const handleCardClick = (card: Card) => {
@@ -154,8 +202,9 @@ function KanbanContent() {
     }
 
     const handleNewCard = (columnId: string) => {
+        // Criar um card temporário para o modal
         const newCard: Card = {
-            id: 'temp_' + Date.now(),
+            id: `temp_${Date.now()}`,
             title: '',
             description: '',
             priority: 'MEDIUM',
@@ -178,7 +227,9 @@ function KanbanContent() {
 
     const handleCardCreated = async (newCard: Card) => {
         console.log('Card criado recebido:', newCard)
-        
+        console.log('Board selecionado:', selectedBoard)
+
+        // Adicionar o novo card ao estado local
         setBoards(prevBoards =>
             prevBoards.map(board =>
                 board.id === selectedBoard ? {
@@ -192,6 +243,7 @@ function KanbanContent() {
             )
         )
 
+        // Forçar reload dos dados para garantir sincronização
         setTimeout(() => {
             fetchBoards()
         }, 1000)
@@ -205,19 +257,27 @@ function KanbanContent() {
         setShowExportModal(true)
     }
 
+    // Preparar dados para exportação
     const getExportData = () => {
         const allCards = currentBoard?.columns.flatMap(column =>
             column.cards.map(card => ({
                 ...card,
-                columnName: column.name
+                column: column.name,
+                board: currentBoard.name,
+                assignee_name: card.assignee?.name || '',
+                creator_name: card.creator?.name || '',
+                priority_label: card.priority === 'HIGH' ? 'Alta' : card.priority === 'MEDIUM' ? 'Média' : 'Baixa',
+                urgency_label: card.urgency === 'URGENT' ? 'Urgente' : 'Não Urgente'
             }))
         ) || []
-        
-        return allCards
+
+        return getFilteredCards(allCards)
     }
 
+    // Filtrar cards baseado na busca
     const getFilteredCards = (cards: Card[]) => {
         return cards.filter(card => {
+            // Filtro de busca
             if (searchTerm && !card.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
                 !card.description?.toLowerCase().includes(searchTerm.toLowerCase())) {
                 return false
@@ -239,57 +299,56 @@ function KanbanContent() {
             {/* Header */}
             <div className="sticky top-0 z-10 bg-dark-900/95 backdrop-blur-sm border-b border-dark-700">
                 <div className="flex items-center justify-between p-6">
-                    <div className="flex items-center space-x-4">
-                        <h1 className="text-2xl font-bold text-dark-50">
-                            {currentBoard?.name || 'Kanban'}
-                        </h1>
-                        {user && (
-                            <span className="text-sm text-dark-400">
-                                Bem-vindo, {user.name}
-                            </span>
-                        )}
+                <div className="flex items-center space-x-4">
+                    <h1 className="text-2xl font-bold text-dark-50">
+                        {currentBoard?.name || 'Kanban'}
+                    </h1>
+                    {user && (
+                        <span className="text-sm text-dark-400">
+                            Bem-vindo, {user.name}
+                        </span>
+                    )}
+                </div>
+
+                <div className="flex items-center space-x-4">
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
+                        <input
+                            type="text"
+                            placeholder="Buscar cards..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 bg-dark-800 border border-dark-600 rounded-lg text-dark-200 placeholder-dark-500 focus:outline-none focus:border-primary-500"
+                        />
                     </div>
 
-                    <div className="flex items-center space-x-4">
-                        {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
-                            <input
-                                type="text"
-                                placeholder="Buscar cards..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 bg-dark-800 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                            />
-                        </div>
+                    {/* Filters */}
+                    <button
+                        onClick={handleFiltersClick}
+                        className={`btn-secondary ${hasActiveFilters ? 'bg-primary-500 text-white' : ''}`}
+                    >
+                        <Filter className="w-4 h-4 mr-2" />
+                        Filtros
+                    </button>
 
-                        {/* Filters */}
-                        <button
-                            onClick={handleFiltersClick}
-                            className={'btn-secondary ' + (hasActiveFilters ? 'bg-primary-500 text-white' : '')}
-                        >
-                            <Filter className="w-4 h-4 mr-2" />
-                            Filtros
-                        </button>
+                    {/* Export */}
+                    <button
+                        onClick={handleExportClick}
+                        className="btn-secondary"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        Exportar
+                    </button>
 
-                        {/* Export */}
-                        <button
-                            onClick={handleExportClick}
-                            className="btn-secondary"
-                        >
-                            <Download className="w-4 h-4 mr-2" />
-                            Exportar
-                        </button>
-
-                        {/* New Card */}
-                        <button
-                            onClick={() => handleNewCard('backlog')}
-                            className="btn-primary"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Nova Demanda
-                        </button>
-                    </div>
+                    {/* New Card */}
+                    <button
+                        onClick={() => handleNewCard('backlog')}
+                        className="btn-primary"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nova Demanda
+                    </button>
                 </div>
             </div>
 
@@ -331,9 +390,11 @@ function KanbanContent() {
                         try {
                             console.log('🔄 Processando card:', updatedCard)
 
+                            // Verificar se é um novo card
                             const isNewCard = selectedCard?.id.startsWith('temp_')
 
                             if (isNewCard) {
+                                // Adicionar novo card ao estado
                                 console.log('➕ Adicionando novo card ao estado')
                                 setBoards(prevBoards =>
                                     prevBoards.map(board =>
@@ -348,6 +409,7 @@ function KanbanContent() {
                                     )
                                 )
                             } else {
+                                // Atualizar card existente
                                 console.log('🔄 Atualizando card existente')
                                 const cardToUpdate = {
                                     ...selectedCard,
@@ -395,6 +457,7 @@ function KanbanContent() {
                     isOpen={showFiltersModal}
                     onClose={() => setShowFiltersModal(false)}
                     onApplyFilters={(newFilters) => {
+                        // Aplicar filtros
                         console.log('Aplicar filtros:', newFilters)
                         setFilters(newFilters)
                         setShowFiltersModal(false)
@@ -409,7 +472,7 @@ function KanbanContent() {
                 onClose={() => setShowExportModal(false)}
                 context="kanban"
                 data={getExportData()}
-                title={'Kanban_' + (currentBoard?.name?.replace(/\s+/g, '_') || 'Board')}
+                title={`Kanban_${currentBoard?.name?.replace(/\s+/g, '_') || 'Board'}`}
             />
         </div>
     )

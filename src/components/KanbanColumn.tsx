@@ -138,7 +138,7 @@ export default function KanbanColumn({ column, onCardClick, onNewCard }: KanbanC
       {/* Cards Container */}
       <div
         ref={setNodeRef}
-        className={`flex-1 p-4 space-y-3 min-h-[200px] max-h-[calc(100vh-280px)] overflow-y-auto transition-all duration-200 ${
+        className={`flex-1 p-4 space-y-3 min-h-[400px] transition-all duration-200 ${
           isOver ? 'bg-primary-500/5' : ''
         }`}
         data-column-id={column.id}
