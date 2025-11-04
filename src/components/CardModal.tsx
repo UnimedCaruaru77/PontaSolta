@@ -113,7 +113,52 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
         alert('Título é obrigatório')
         return
       }
-      console.log('Salvando card com dados:', {
+
+      // Verificar se é criação de novo card
+      const isNewCard = card.id.startsWith('temp_')
+      
+      if (isNewCard) {
+        // Criar novo card
+        const response = await fetch('/api/cards', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description,
+            priority: formData.priority,
+            urgency: formData.urgency,
+            highImpact: formData.highImpact,
+            isProject: formData.isProject,
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            assigneeId: formData.assignee?.id,
+            lecomTicket: formData.lecomTicket,
+            columnId: formData.columnId,
+            creatorId: formData.creator.id,
+            boardId: '1', // ID do board padrão
+            position: 0
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error('Erro ao criar card')
+        }
+
+        const data = await response.json()
+        
+        console.log('✅ Card criado com sucesso:', data.card)
+        alert('Card criado com sucesso!')
+        
+        if (onSave) {
+          onSave(data.card)
+        }
+        
+        onClose()
+        return
+      }
+      const saveData = {
         title: formData.title,
         description: formData.description,
         priority: formData.priority,
@@ -122,27 +167,18 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
         isProject: formData.isProject,
         startDate: formData.startDate,
         endDate: formData.endDate,
-        assigneeId: formData.assignee?.id,
+        assigneeId: formData.assignee?.id || null,
         lecomTicket: formData.lecomTicket
-      })
+      }
+      
+      console.log('Salvando card com dados:', saveData)
 
       const response = await fetch(`/api/cards/${card.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          priority: formData.priority,
-          urgency: formData.urgency,
-          highImpact: formData.highImpact,
-          isProject: formData.isProject,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          assigneeId: formData.assignee?.id,
-          lecomTicket: formData.lecomTicket
-        })
+        body: JSON.stringify(saveData)
       })
 
       if (!response.ok) {
@@ -259,17 +295,23 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
   const handleAssigneeChange = (assigneeId: string) => {
     console.log('Alterar responsável para:', assigneeId)
     
-    // Mapear IDs para dados dos usuários (mock data)
-    const users = {
-      '1': { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
-      '2': { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
-      '3': { id: '3', name: 'Marcos Barreto', email: 'marcos.barreto@unimed.com' }
+    try {
+      // Mapear IDs para dados dos usuários (mock data)
+      const users = {
+        '1': { id: '1', name: 'Luciano Filho', email: 'luciano.filho@unimed.com' },
+        '2': { id: '2', name: 'Edwa Favre', email: 'edwa.favre@hospital.com' },
+        '3': { id: '3', name: 'Marcos Barreto', email: 'marcos.barreto@unimed.com' }
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        assignee: assigneeId && users[assigneeId as keyof typeof users] 
+          ? users[assigneeId as keyof typeof users] 
+          : undefined
+      }))
+    } catch (error) {
+      console.error('Erro ao alterar responsável:', error)
     }
-    
-    setFormData(prev => ({
-      ...prev,
-      assignee: assigneeId ? users[assigneeId as keyof typeof users] : undefined
-    }))
   }
 
   const getPriorityColor = () => {
@@ -618,8 +660,8 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
                   <label className="block text-xs font-medium text-dark-400 mb-2">Data de Início</label>
                   <input
                     type="datetime-local"
-                    value={formData.startDate || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                    value={formData.startDate ? new Date(formData.startDate).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
                     className="w-full bg-dark-700/50 border border-dark-600/50 rounded-lg px-3 py-2 text-dark-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all duration-200"
                   />
                 </div>
@@ -628,18 +670,24 @@ export default function CardModal({ card, isOpen, onClose, onSave }: CardModalPr
                   <label className="block text-xs font-medium text-dark-400 mb-2">Data de Término</label>
                   <input
                     type="datetime-local"
-                    value={formData.endDate || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                    value={formData.endDate ? new Date(formData.endDate).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
                     className="w-full bg-dark-700/50 border border-dark-600/50 rounded-lg px-3 py-2 text-dark-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50 transition-all duration-200"
                   />
                   {formData.endDate && (
                     <div className="mt-2 text-xs text-dark-400">
-                      Prazo: {new Date(formData.endDate).toLocaleDateString('pt-BR', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      Prazo: {(() => {
+                        try {
+                          return new Date(formData.endDate).toLocaleDateString('pt-BR', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })
+                        } catch (error) {
+                          return 'Data inválida'
+                        }
+                      })()}
                     </div>
                   )}
                 </div>

@@ -201,8 +201,27 @@ function KanbanContent() {
     }
 
     const handleNewCard = (columnId: string) => {
+        // Criar um card temporário para o modal
+        const newCard: Card = {
+            id: `temp_${Date.now()}`,
+            title: '',
+            description: '',
+            priority: 'MEDIUM',
+            urgency: 'NOT_URGENT',
+            highImpact: false,
+            isProject: false,
+            creator: {
+                id: user?.id || '1',
+                name: user?.name || 'Usuário Atual',
+                email: user?.email || 'usuario@exemplo.com'
+            },
+            position: 0,
+            columnId: columnId
+        }
+        
+        setSelectedCard(newCard)
+        setIsCardModalOpen(true)
         setCreateColumnId(columnId)
-        setShowCreateModal(true)
     }
 
     const handleCardCreated = async (newCard: Card) => {
@@ -365,37 +384,54 @@ function KanbanContent() {
                     }}
                     onSave={async (updatedCard) => {
                         try {
-                            console.log('🔄 Atualizando card no estado local:', updatedCard)
+                            console.log('🔄 Processando card:', updatedCard)
                             
-                            // Garantir que o card atualizado tenha a estrutura correta
-                            const cardToUpdate = {
-                                ...selectedCard, // Manter dados originais
-                                ...updatedCard,  // Sobrescrever com dados atualizados
-                                // Garantir campos essenciais
-                                id: updatedCard.id || selectedCard?.id,
-                                columnId: updatedCard.columnId || selectedCard?.columnId,
-                                position: updatedCard.position || selectedCard?.position || 0
-                            }
+                            // Verificar se é um novo card
+                            const isNewCard = selectedCard?.id.startsWith('temp_')
                             
-                            console.log('📝 Card formatado para update:', cardToUpdate)
-                            
-                            // Atualizar o card no estado local
-                            setBoards(prevBoards => 
-                                prevBoards.map(board => ({
-                                    ...board,
-                                    columns: board.columns.map(column => ({
-                                        ...column,
-                                        cards: column.cards.map(card => 
-                                            card.id === cardToUpdate.id ? cardToUpdate : card
-                                        )
+                            if (isNewCard) {
+                                // Adicionar novo card ao estado
+                                console.log('➕ Adicionando novo card ao estado')
+                                setBoards(prevBoards => 
+                                    prevBoards.map(board => 
+                                        board.id === selectedBoard ? {
+                                            ...board,
+                                            columns: board.columns.map(column => 
+                                                column.id === updatedCard.columnId 
+                                                    ? { ...column, cards: [...column.cards, updatedCard] }
+                                                    : column
+                                            )
+                                        } : board
+                                    )
+                                )
+                            } else {
+                                // Atualizar card existente
+                                console.log('🔄 Atualizando card existente')
+                                const cardToUpdate = {
+                                    ...selectedCard,
+                                    ...updatedCard,
+                                    id: updatedCard.id || selectedCard?.id,
+                                    columnId: updatedCard.columnId || selectedCard?.columnId,
+                                    position: updatedCard.position || selectedCard?.position || 0
+                                }
+                                
+                                setBoards(prevBoards => 
+                                    prevBoards.map(board => ({
+                                        ...board,
+                                        columns: board.columns.map(column => ({
+                                            ...column,
+                                            cards: column.cards.map(card => 
+                                                card.id === cardToUpdate.id ? cardToUpdate : card
+                                            )
+                                        }))
                                     }))
-                                }))
-                            )
+                                )
+                            }
                             
                             console.log('✅ Estado local atualizado com sucesso')
                             
                         } catch (error) {
-                            console.error('❌ Erro ao atualizar estado local:', error)
+                            console.error('❌ Erro ao processar card:', error)
                         } finally {
                             setIsCardModalOpen(false)
                             setSelectedCard(null)
