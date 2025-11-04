@@ -10,7 +10,7 @@ import CardModal from '@/components/CardModal'
 import SimpleCreateModal from '@/components/SimpleCreateModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import ExportModal from '@/components/ExportModal'
-import AuthenticatedLayout from '@/components/AuthenticatedLayout'
+
 import { useAuth } from '@/hooks/useAuth'
 
 interface Card {
@@ -81,11 +81,17 @@ function KanbanContent() {
             }
             const data = await response.json()
             
+            console.log('📊 Dados recebidos da API:', data)
+            
             if (data.success && data.boards) {
+                console.log('✅ Boards carregados:', data.boards)
                 setBoards(data.boards)
                 if (data.boards.length > 0 && !selectedBoard) {
                     setSelectedBoard(data.boards[0].id)
+                    console.log('🎯 Board selecionado:', data.boards[0].id)
                 }
+            } else {
+                console.log('❌ Nenhum board encontrado ou erro na resposta')
             }
         } catch (error) {
             console.error('Erro ao carregar boards:', error)
@@ -99,6 +105,13 @@ function KanbanContent() {
     }, [teamId])
 
     const currentBoard = boards.find(board => board.id === selectedBoard)
+    
+    console.log('🔍 Debug Kanban:', {
+        boards: boards.length,
+        selectedBoard,
+        currentBoard: currentBoard?.name,
+        columns: currentBoard?.columns?.length || 0
+    })
 
     const handleDragStart = (event: DragStartEvent) => {
         const { active } = event
@@ -312,7 +325,7 @@ function KanbanContent() {
                         </div>
 
                         <DragOverlay>
-                            {activeCard ? <KanbanCard card={activeCard} /> : null}
+                            {activeCard ? <KanbanCard card={activeCard} onClick={() => {}} /> : null}
                         </DragOverlay>
                     </DndContext>
                 </div>
@@ -417,14 +430,12 @@ function KanbanContent() {
 
 export default function KanbanPage() {
     return (
-        <AuthenticatedLayout>
-            <Suspense fallback={
-                <div className="flex items-center justify-center h-screen">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
-                </div>
-            }>
-                <KanbanContent />
-            </Suspense>
-        </AuthenticatedLayout>
+        <Suspense fallback={
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-500"></div>
+            </div>
+        }>
+            <KanbanContent />
+        </Suspense>
     )
 }
