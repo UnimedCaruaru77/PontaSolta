@@ -6,7 +6,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/
 import { Plus, Filter, Search, Download } from 'lucide-react'
 import KanbanColumn from '@/components/KanbanColumn'
 import KanbanCard from '@/components/KanbanCard'
-import CardModal from '@/components/CardModal'
+import SimpleCardModal from '@/components/SimpleCardModal'
 import SimpleCreateModal from '@/components/SimpleCreateModal'
 import AdvancedFiltersModal from '@/components/AdvancedFiltersModal'
 import ExportModal from '@/components/ExportModal'
@@ -74,25 +74,82 @@ function KanbanContent() {
     const fetchBoards = async () => {
         try {
             setLoading(true)
-            const url = teamId ? '/api/boards?teamId=' + teamId : '/api/boards'
-            const response = await fetch(url)
-            if (!response.ok) {
-                throw new Error('Falha ao carregar boards')
-            }
-            const data = await response.json()
             
-            console.log('📊 Dados recebidos da API:', data)
-            
-            if (data.success && data.boards) {
-                console.log('✅ Boards carregados:', data.boards)
-                setBoards(data.boards)
-                if (data.boards.length > 0 && !selectedBoard) {
-                    setSelectedBoard(data.boards[0].id)
-                    console.log('🎯 Board selecionado:', data.boards[0].id)
+            // Dados de teste temporários enquanto a API não funciona
+            const mockBoards = [
+                {
+                    id: 'board-1',
+                    name: 'Kanban Service Desk',
+                    columns: [
+                        {
+                            id: 'backlog',
+                            name: 'Backlog',
+                            position: 0,
+                            cards: [
+                                {
+                                    id: 'card-1',
+                                    title: 'Configurar novo computador',
+                                    description: 'Instalar sistema operacional e programas básicos para novo funcionário',
+                                    priority: 'HIGH',
+                                    urgency: 'URGENT',
+                                    highImpact: true,
+                                    isProject: false,
+                                    creator: {
+                                        id: '1',
+                                        name: 'Usuário Teste',
+                                        email: 'teste@exemplo.com'
+                                    },
+                                    position: 0,
+                                    columnId: 'backlog'
+                                }
+                            ]
+                        },
+                        {
+                            id: 'in_progress',
+                            name: 'Em Andamento',
+                            position: 1,
+                            cards: [
+                                {
+                                    id: 'card-2',
+                                    title: 'Resolver problema de impressora',
+                                    description: 'Impressora do setor financeiro não está funcionando. TESTE',
+                                    priority: 'MEDIUM',
+                                    urgency: 'NOT_URGENT',
+                                    highImpact: false,
+                                    isProject: false,
+                                    creator: {
+                                        id: '1',
+                                        name: 'Usuário Teste',
+                                        email: 'teste@exemplo.com'
+                                    },
+                                    position: 0,
+                                    columnId: 'in_progress'
+                                }
+                            ]
+                        },
+                        {
+                            id: 'review',
+                            name: 'Em Revisão',
+                            position: 2,
+                            cards: []
+                        },
+                        {
+                            id: 'done',
+                            name: 'Concluído',
+                            position: 3,
+                            cards: []
+                        }
+                    ]
                 }
-            } else {
-                console.log('❌ Nenhum board encontrado ou erro na resposta')
+            ]
+            
+            console.log('📊 Usando dados de teste:', mockBoards)
+            setBoards(mockBoards)
+            if (mockBoards.length > 0 && !selectedBoard) {
+                setSelectedBoard(mockBoards[0].id)
+                console.log('🎯 Board selecionado:', mockBoards[0].id)
             }
+            
         } catch (error) {
             console.error('Erro ao carregar boards:', error)
         } finally {
@@ -333,7 +390,7 @@ function KanbanContent() {
 
             {/* Card Modal */}
             {selectedCard && (
-                <CardModal
+                <SimpleCardModal
                     card={selectedCard}
                     isOpen={isCardModalOpen}
                     onClose={() => {

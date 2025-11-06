@@ -1,376 +1,229 @@
 'use client'
 
-import { X, Calendar, User, Flag, AlertTriangle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Save } from 'lucide-react'
 
-interface SimpleCardModalProps {
-  card: any
-  isOpen: boolean
-  onClose: () => void
+interface Card {
+  id: string
+  title: string
+  description?: string
+  priority: 'HIGH' | 'MEDIUM' | 'LOW'
+  urgency: 'URGENT' | 'NOT_URGENT'
+  highImpact: boolean
+  isProject: boolean
+  assignee?: {
+    id: string
+    name: string
+    email: string
+  }
+  creator: {
+    id: string
+    name: string
+    email: string
+  }
+  startDate?: string
+  endDate?: string
+  lecomTicket?: string
+  position: number
+  columnId: string
 }
 
-export default function SimpleCardModal({ card, isOpen, onClose }: SimpleCardModalProps) {
-  if (!isOpen || !card) return null
+interface SimpleCardModalProps {
+  card: Card
+  isOpen: boolean
+  onClose: () => void
+  onSave: (card: Card) => Promise<void>
+}
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'text-red-400'
-      case 'MEDIUM': return 'text-yellow-400'
-      case 'LOW': return 'text-green-400'
-      default: return 'text-gray-400'
+export default function SimpleCardModal({ card, isOpen, onClose, onSave }: SimpleCardModalProps) {
+  const [formData, setFormData] = useState<Card>(card)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (isOpen && card) {
+      setFormData(card)
+    }
+  }, [isOpen, card.id])
+
+  if (!isOpen) return null
+
+  const handleSave = async () => {
+    if (loading) return
+    
+    setLoading(true)
+    
+    try {
+      if (!formData.title?.trim()) {
+        alert('Título é obrigatório')
+        return
+      }
+
+      const isNewCard = card.id.startsWith('temp_')
+      
+      const cardToSave = {
+        ...formData,
+        id: isNewCard ? `card_${Date.now()}` : formData.id,
+        title: formData.title.trim(),
+        description: formData.description?.trim() || '',
+        priority: formData.priority || 'MEDIUM',
+        urgency: formData.urgency || 'NOT_URGENT',
+        highImpact: formData.highImpact || false,
+        isProject: formData.isProject || false,
+        columnId: formData.columnId || card.columnId,
+        position: formData.position || 0,
+        creator: formData.creator || card.creator
+      }
+
+      await onSave(cardToSave)
+      onClose()
+      
+    } catch (error) {
+      console.error('Erro ao salvar card:', error)
+      alert('Erro ao salvar card. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'Alta'
-      case 'MEDIUM': return 'Média'
-      case 'LOW': return 'Baixa'
-      default: return priority
-    }
-  }
-
-  const getUrgencyLabel = (urgency: string) => {
-    switch (urgency) {
-      case 'URGENT': return 'Urgente'
-      case 'NOT_URGENT': return 'Não Urgente'
-      default: return urgency
+  const handleClose = () => {
+    if (!loading) {
+      onClose()
     }
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 50
-    }}>
-      <div style={{
-        backgroundColor: '#1f2937',
-        border: '1px solid #374151',
-        borderRadius: '12px',
-        padding: '24px',
-        width: '100%',
-        maxWidth: '600px',
-        margin: '16px',
-        maxHeight: '80vh',
-        overflow: 'auto'
-      }}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-dark-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '24px',
-          paddingBottom: '16px',
-          borderBottom: '1px solid #374151'
-        }}>
-          <h2 style={{ 
-            color: '#f9fafb', 
-            fontSize: '20px', 
-            fontWeight: '600',
-            margin: 0
-          }}>
-            Detalhes do Card
+        <div className="flex items-center justify-between p-6 border-b border-dark-700">
+          <h2 className="text-xl font-semibold text-dark-50">
+            {card.id.startsWith('temp_') ? 'Nova Demanda' : 'Editar Card'}
           </h2>
           <button
-            onClick={onClose}
-            style={{
-              padding: '8px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#9ca3af',
-              cursor: 'pointer'
-            }}
+            onClick={handleClose}
+            disabled={loading}
+            className="p-2 hover:bg-dark-700 rounded-lg text-dark-400 hover:text-dark-200 transition-colors disabled:opacity-50"
           >
-            <X style={{ width: '20px', height: '20px' }} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="p-6 space-y-6">
           {/* Título */}
           <div>
-            <label style={{ 
-              display: 'block', 
-              color: '#d1d5db', 
-              fontSize: '14px', 
-              fontWeight: '500',
-              marginBottom: '8px' 
-            }}>
-              Título
+            <label className="block text-sm font-medium text-dark-300 mb-2">
+              Título *
             </label>
-            <div style={{
-              padding: '12px',
-              backgroundColor: '#374151',
-              border: '1px solid #4b5563',
-              borderRadius: '6px',
-              color: '#f9fafb',
-              fontSize: '16px'
-            }}>
-              {card.title}
-            </div>
+            <input
+              type="text"
+              value={formData.title || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="Digite o título da demanda..."
+              disabled={loading}
+            />
           </div>
 
           {/* Descrição */}
-          {card.description && (
-            <div>
-              <label style={{ 
-                display: 'block', 
-                color: '#d1d5db', 
-                fontSize: '14px', 
-                fontWeight: '500',
-                marginBottom: '8px' 
-              }}>
-                Descrição
-              </label>
-              <div style={{
-                padding: '12px',
-                backgroundColor: '#374151',
-                border: '1px solid #4b5563',
-                borderRadius: '6px',
-                color: '#f9fafb',
-                fontSize: '14px',
-                minHeight: '60px'
-              }}>
-                {card.description}
-              </div>
-            </div>
-          )}
-
-          {/* Informações em Grid */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gap: '16px' 
-          }}>
-            {/* Prioridade */}
-            <div>
-              <label style={{ 
-                display: 'block', 
-                color: '#d1d5db', 
-                fontSize: '14px', 
-                fontWeight: '500',
-                marginBottom: '8px' 
-              }}>
-                <Flag style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
-                Prioridade
-              </label>
-              <div style={{
-                padding: '8px 12px',
-                backgroundColor: '#374151',
-                border: '1px solid #4b5563',
-                borderRadius: '6px',
-                fontSize: '14px'
-              }} className={getPriorityColor(card.priority)}>
-                {getPriorityLabel(card.priority)}
-              </div>
-            </div>
-
-            {/* Urgência */}
-            <div>
-              <label style={{ 
-                display: 'block', 
-                color: '#d1d5db', 
-                fontSize: '14px', 
-                fontWeight: '500',
-                marginBottom: '8px' 
-              }}>
-                <AlertTriangle style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
-                Urgência
-              </label>
-              <div style={{
-                padding: '8px 12px',
-                backgroundColor: '#374151',
-                border: '1px solid #4b5563',
-                borderRadius: '6px',
-                color: '#f9fafb',
-                fontSize: '14px'
-              }}>
-                {getUrgencyLabel(card.urgency)}
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-dark-300 mb-2">
+              Descrição
+            </label>
+            <textarea
+              value={formData.description || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows={4}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              placeholder="Descreva a demanda..."
+              disabled={loading}
+            />
           </div>
 
-          {/* Flags */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gap: '16px' 
-          }}>
-            <div style={{
-              padding: '12px',
-              backgroundColor: card.high_impact ? '#065f46' : '#374151',
-              border: `1px solid ${card.high_impact ? '#10b981' : '#4b5563'}`,
-              borderRadius: '6px',
-              textAlign: 'center',
-              color: card.high_impact ? '#10b981' : '#9ca3af',
-              fontSize: '14px'
-            }}>
-              {card.high_impact ? '✓' : '✗'} Alto Impacto
-            </div>
-
-            <div style={{
-              padding: '12px',
-              backgroundColor: card.is_project ? '#1e40af' : '#374151',
-              border: `1px solid ${card.is_project ? '#3b82f6' : '#4b5563'}`,
-              borderRadius: '6px',
-              textAlign: 'center',
-              color: card.is_project ? '#3b82f6' : '#9ca3af',
-              fontSize: '14px'
-            }}>
-              {card.is_project ? '✓' : '✗'} É um Projeto
-            </div>
+          {/* Prioridade */}
+          <div>
+            <label className="block text-sm font-medium text-dark-300 mb-2">
+              Prioridade
+            </label>
+            <select
+              value={formData.priority || 'MEDIUM'}
+              onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW' }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              disabled={loading}
+            >
+              <option value="LOW">Baixa</option>
+              <option value="MEDIUM">Média</option>
+              <option value="HIGH">Alta</option>
+            </select>
           </div>
 
-          {/* Datas */}
-          {(card.start_date || card.end_date) && (
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '16px' 
-            }}>
-              {card.start_date && (
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    color: '#d1d5db', 
-                    fontSize: '14px', 
-                    fontWeight: '500',
-                    marginBottom: '8px' 
-                  }}>
-                    <Calendar style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
-                    Data de Início
-                  </label>
-                  <div style={{
-                    padding: '8px 12px',
-                    backgroundColor: '#374151',
-                    border: '1px solid #4b5563',
-                    borderRadius: '6px',
-                    color: '#f9fafb',
-                    fontSize: '14px'
-                  }}>
-                    {new Date(card.start_date).toLocaleDateString('pt-BR')}
-                  </div>
-                </div>
-              )}
-
-              {card.end_date && (
-                <div>
-                  <label style={{ 
-                    display: 'block', 
-                    color: '#d1d5db', 
-                    fontSize: '14px', 
-                    fontWeight: '500',
-                    marginBottom: '8px' 
-                  }}>
-                    <Calendar style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
-                    Data de Término
-                  </label>
-                  <div style={{
-                    padding: '8px 12px',
-                    backgroundColor: '#374151',
-                    border: '1px solid #4b5563',
-                    borderRadius: '6px',
-                    color: '#f9fafb',
-                    fontSize: '14px'
-                  }}>
-                    {new Date(card.end_date).toLocaleDateString('pt-BR')}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Responsável */}
-          {card.assignee && (
-            <div>
-              <label style={{ 
-                display: 'block', 
-                color: '#d1d5db', 
-                fontSize: '14px', 
-                fontWeight: '500',
-                marginBottom: '8px' 
-              }}>
-                <User style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
-                Responsável
-              </label>
-              <div style={{
-                padding: '12px',
-                backgroundColor: '#374151',
-                border: '1px solid #4b5563',
-                borderRadius: '6px',
-                color: '#f9fafb',
-                fontSize: '14px'
-              }}>
-                {card.assignee.name} ({card.assignee.email})
-              </div>
-            </div>
-          )}
-
-          {/* Ticket LECOM */}
-          {card.lecom_ticket && (
-            <div>
-              <label style={{ 
-                display: 'block', 
-                color: '#d1d5db', 
-                fontSize: '14px', 
-                fontWeight: '500',
-                marginBottom: '8px' 
-              }}>
-                Ticket LECOM
-              </label>
-              <div style={{
-                padding: '12px',
-                backgroundColor: '#374151',
-                border: '1px solid #4b5563',
-                borderRadius: '6px',
-                color: '#f9fafb',
-                fontSize: '14px'
-              }}>
-                {card.lecom_ticket}
-              </div>
-            </div>
-          )}
-
-          {/* Nota sobre edição */}
-          <div style={{
-            padding: '12px',
-            backgroundColor: '#1f2937',
-            border: '1px solid #374151',
-            borderRadius: '6px',
-            textAlign: 'center'
-          }}>
-            <p style={{ 
-              color: '#9ca3af', 
-              fontSize: '14px', 
-              margin: 0 
-            }}>
-              📝 Funcionalidade de edição será implementada em breve
-            </p>
+          {/* Urgência */}
+          <div>
+            <label className="block text-sm font-medium text-dark-300 mb-2">
+              Urgência
+            </label>
+            <select
+              value={formData.urgency || 'NOT_URGENT'}
+              onChange={(e) => setFormData(prev => ({ ...prev, urgency: e.target.value as 'URGENT' | 'NOT_URGENT' }))}
+              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              disabled={loading}
+            >
+              <option value="NOT_URGENT">Não Urgente</option>
+              <option value="URGENT">Urgente</option>
+            </select>
           </div>
 
-          {/* Botão Fechar */}
+          {/* Checkboxes */}
+          <div className="space-y-3">
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={formData.highImpact || false}
+                onChange={(e) => setFormData(prev => ({ ...prev, highImpact: e.target.checked }))}
+                className="w-4 h-4 text-primary-500 bg-dark-700 border-dark-600 rounded focus:ring-primary-500 focus:ring-2"
+                disabled={loading}
+              />
+              <span className="text-dark-300">Alto Impacto</span>
+            </label>
+
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={formData.isProject || false}
+                onChange={(e) => setFormData(prev => ({ ...prev, isProject: e.target.checked }))}
+                className="w-4 h-4 text-primary-500 bg-dark-700 border-dark-600 rounded focus:ring-primary-500 focus:ring-2"
+                disabled={loading}
+              />
+              <span className="text-dark-300">É Projeto</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end space-x-3 p-6 border-t border-dark-700">
           <button
-            onClick={onClose}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: '#4b5563',
-              color: '#f9fafb',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              cursor: 'pointer',
-              marginTop: '8px'
-            }}
+            onClick={handleClose}
+            disabled={loading}
+            className="px-4 py-2 text-dark-300 hover:text-dark-100 transition-colors disabled:opacity-50"
           >
-            Fechar
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={loading || !formData.title?.trim()}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Salvar Alterações</span>
+              </>
+            )}
           </button>
         </div>
       </div>
