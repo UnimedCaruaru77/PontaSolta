@@ -64,13 +64,10 @@ export function getSession() {
 }
 
 function getCallbackUrl(): string {
-  // In production (published Replit app)
-  if (process.env.REPLIT_DEPLOYMENT === '1') {
-    const slug = process.env.REPL_SLUG;
-    const owner = process.env.REPL_OWNER;
-    if (slug && owner) {
-      return `https://${slug}.${owner}.repl.co/api/auth/google/callback`;
-    }
+  // Use REPLIT_DOMAINS (works for both dev and production Replit environments)
+  if (process.env.REPLIT_DOMAINS) {
+    const domain = process.env.REPLIT_DOMAINS.split(',')[0].trim();
+    return `https://${domain}/api/auth/google/callback`;
   }
   
   // In Replit dev environment
