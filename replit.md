@@ -2,33 +2,35 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with features like Kanban boards, team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
-## Recent Changes (v2.4.0 - October 28, 2025)
+## Recent Changes (v2.5.0 - March 2026)
 
-### 🔐 Authentication System Update
-1. **Replaced Replit OAuth with Traditional Email/Password Authentication**:
-   - Implemented Passport Local Strategy with bcrypt password hashing
-   - Added Zod validation for login and registration endpoints
-   - Created secure session management with httpOnly cookies
-   - **FIXED**: Production cookie configuration now detects Replit deployment correctly
-   - **FIXED**: Session store uses PostgreSQL in production for persistence across deploys
+### 🔐 Authentication System Update - Google OAuth Only
+1. **Replaced email/password login with Google OAuth exclusively**:
+   - Login é feito apenas via conta Google corporativa
+   - Sem formulário de email/senha — apenas botão "Entrar com Google"
+   - Usuários novos são criados automaticamente no primeiro login pelo Google
+   - Credenciais: `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` nos Replit Secrets
 
-2. **Security Enhancements**:
-   - Passwords hashed with bcrypt (10 rounds)
-   - Session cookies configured: httpOnly, secure (HTTPS), sameSite: lax
-   - CSRF protection via session middleware
-   - Input validation on all auth endpoints
+2. **Administradores automáticos por email**:
+   - `luciano.filho@unimedcaruaru.com.br` → role: admin
+   - `luciano.filho4@unimedcaruaru.com.br` → role: admin
+   - Ao fazer login com Google, o role é atribuído/atualizado automaticamente
 
-3. **Production Deployment Fix**:
-   - Auto-detection of production environment via REPL_SLUG and REPLIT_DEPLOYMENT env vars
-   - Proper cookie security for HTTPS in production deployments
-   - PostgreSQL session store for published apps
+3. **Segurança**:
+   - Session cookies: httpOnly, secure (HTTPS em prod), sameSite: lax
+   - PostgreSQL session store em produção
+   - Fail-fast se GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET não configurados
 
-### Admin Credentials
-- Email: `luciano.filho@unimedcaruaru.com.br`
-- Password: Set via `ADMIN_PASSWORD` environment secret
-- Role: admin
+### Callback URL do Google OAuth
+- Desenvolvimento: `https://<replit-dev-domain>/api/auth/google/callback`
+- Produção: `https://<app>.replit.app/api/auth/google/callback`
+- A URL é detectada automaticamente via `REPLIT_DOMAINS` env var
 
-**Note**: The admin user is automatically created on first deployment when the database is empty. The password is read from the `ADMIN_PASSWORD` secret for security. After first login, users should change their password.
+### Secrets Necessários
+- `GOOGLE_CLIENT_ID` — Client ID do Google Cloud Console
+- `GOOGLE_CLIENT_SECRET` — Client Secret do Google Cloud Console
+- `SESSION_SECRET` — Chave de sessão (já configurado)
+- `DATABASE_URL` — PostgreSQL (já configurado)
 
 ## Previous Changes (v2.3.0 - October 28, 2025)
 

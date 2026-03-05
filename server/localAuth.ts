@@ -1,35 +1,26 @@
 import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import MemoryStore from "memorystore";
-import bcrypt from "bcrypt";
-import { z } from "zod";
 import { storage } from "./storage";
 
-// Validation schemas
-const loginSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(1, "Senha é obrigatória"),
-});
-
-const registerSchema = z.object({
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-});
+// Emails que terão papel de administrador automaticamente
+const ADMIN_EMAILS = [
+  'luciano.filho@unimedcaruaru.com.br',
+  'luciano.filho4@unimedcaruaru.com.br',
+];
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  
-  // Detect if we're in production based on Replit domains
-  const isProduction = Boolean(process.env.REPL_SLUG || 
-                       process.env.REPLIT_DEPLOYMENT === '1' ||
-                       process.env.NODE_ENV === 'production');
-  
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 semana
+
+  const isProduction = Boolean(
+    process.env.REPL_SLUG ||
+    process.env.REPLIT_DEPLOYMENT === '1' ||
+    process.env.NODE_ENV === 'production'
+  );
+
   let sessionStore;
   if (!isProduction) {
     const MemStore = MemoryStore(session);
@@ -48,7 +39,7 @@ export function getSession() {
     });
     console.log('[session] Using PostgreSQL session store for production');
   }
-  
+
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -56,86 +47,22 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction, // Use secure cookies in production (HTTPS)
-      sameSite: 'lax', // CSRF protection
+      secure: isProduction,
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
 }
 
 function getCallbackUrl(): string {
-  // Use REPLIT_DOMAINS (works for both dev and production Replit environments)
   if (process.env.REPLIT_DOMAINS) {
     const domain = process.env.REPLIT_DOMAINS.split(',')[0].trim();
     return `https://${domain}/api/auth/google/callback`;
   }
-  
-  // In Replit dev environment
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;
   }
-  
-  // Local development fallback
   return `http://localhost:5000/api/auth/google/callback`;
-}
-
-async function initializeAdminUser() {
-  const adminEmail = process.env.ADMIN_EMAIL || 'luciano.filho@unimedcaruaru.com.br';
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  
-  try {
-    // Check if admin user already exists
-    const existingAdmin = await storage.getUserByEmail(adminEmail);
-    
-    // If admin already exists with password or Google auth, we're good
-    if (existingAdmin && (existingAdmin.passwordHash || existingAdmin.googleId)) {
-      console.log('[auth] Admin user already configured');
-      return;
-    }
-    
-    // Admin doesn't exist or has no auth method - we MUST have ADMIN_PASSWORD secret
-    if (!adminPassword) {
-      const errorMsg = `
-╔═══════════════════════════════════════════════════════════════╗
-║ CRITICAL ERROR: ADMIN_PASSWORD secret is not configured      ║
-║                                                               ║
-║ The application cannot start without an admin user.          ║
-║ Please set the ADMIN_PASSWORD environment secret and         ║
-║ restart the application.                                     ║
-║                                                               ║
-║ To fix:                                                       ║
-║ 1. Go to Replit Secrets                                      ║
-║ 2. Add secret: ADMIN_PASSWORD = <your-secure-password>       ║
-║ 3. Restart/republish the application                         ║
-╚═══════════════════════════════════════════════════════════════╝
-      `;
-      console.error(errorMsg);
-      throw new Error('ADMIN_PASSWORD environment variable is required but not set');
-    }
-    
-    const passwordHash = await bcrypt.hash(adminPassword, 10);
-    
-    if (!existingAdmin) {
-      console.log('[auth] Admin user not found in database. Creating default admin user...');
-      
-      await storage.createUser({
-        email: adminEmail,
-        passwordHash,
-        firstName: 'Luciano',
-        lastName: 'Filho',
-        role: 'admin',
-      });
-      
-      console.log(`[auth] ✅ Default admin user created: ${adminEmail}`);
-    } else if (!existingAdmin.passwordHash) {
-      console.log('[auth] Admin user exists but has no password. Setting password...');
-      await storage.updateUser(existingAdmin.id, { passwordHash });
-      console.log('[auth] ✅ Admin password set successfully');
-    }
-  } catch (error) {
-    console.error('[auth] Fatal error initializing admin user:', error);
-    throw error;
-  }
 }
 
 export async function setupAuth(app: Express) {
@@ -144,117 +71,77 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Initialize admin user if database is empty
-  await initializeAdminUser();
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-  // --- Local Strategy (email/password) ---
-  passport.use(new LocalStrategy(
+  if (!googleClientId || !googleClientSecret) {
+    console.error('[auth] CRITICAL: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required.');
+    throw new Error('Google OAuth credentials are not configured.');
+  }
+
+  const callbackURL = getCallbackUrl();
+  console.log(`[auth] Google OAuth enabled. Callback URL: ${callbackURL}`);
+  console.log(`[auth] Admin emails: ${ADMIN_EMAILS.join(', ')}`);
+
+  passport.use(new GoogleStrategy(
     {
-      usernameField: 'email',
-      passwordField: 'password',
+      clientID: googleClientId,
+      clientSecret: googleClientSecret,
+      callbackURL,
+      scope: ['profile', 'email'],
     },
-    async (email, password, done) => {
+    async (accessToken, refreshToken, profile, done) => {
       try {
-        const user = await storage.getUserByEmail(email);
-        
+        const email = profile.emails?.[0]?.value;
+
+        if (!email) {
+          return done(new Error('Não foi possível obter o email da conta Google'));
+        }
+
+        const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
+        const roleForEmail = isAdmin ? 'admin' : 'member';
+
+        // Buscar usuário por Google ID ou email
+        let user = await storage.getUserByGoogleId(profile.id);
+
         if (!user) {
-          return done(null, false, { message: 'Email ou senha incorretos' });
+          user = await storage.getUserByEmail(email);
         }
 
-        if (!user.passwordHash) {
-          return done(null, false, { message: 'Esta conta usa login pelo Google. Clique em "Entrar com Google".' });
-        }
+        if (user) {
+          // Atualizar dados do Google e garantir role correto
+          const needsUpdate =
+            !user.googleId ||
+            user.profileImageUrl !== (profile.photos?.[0]?.value || user.profileImageUrl) ||
+            (isAdmin && user.role !== 'admin');
 
-        const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-        
-        if (!isValidPassword) {
-          return done(null, false, { message: 'Email ou senha incorretos' });
+          if (needsUpdate) {
+            user = await storage.updateUser(user.id, {
+              googleId: profile.id,
+              profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
+              ...(isAdmin ? { role: 'admin' } : {}),
+            });
+            console.log(`[auth] User updated via Google OAuth: ${email} (role: ${user.role})`);
+          }
+        } else {
+          // Criar novo usuário
+          user = await storage.createUser({
+            email,
+            googleId: profile.id,
+            firstName: profile.name?.givenName || null,
+            lastName: profile.name?.familyName || null,
+            profileImageUrl: profile.photos?.[0]?.value || null,
+            role: roleForEmail,
+          });
+          console.log(`[auth] New user created via Google OAuth: ${email} (role: ${roleForEmail})`);
         }
 
         return done(null, user);
       } catch (error) {
-        return done(error);
+        return done(error as Error);
       }
     }
   ));
-
-  // --- Google OAuth Strategy ---
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
-  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-  if (googleClientId && googleClientSecret) {
-    const callbackURL = getCallbackUrl();
-    console.log(`[auth] Google OAuth enabled. Callback URL: ${callbackURL}`);
-
-    passport.use(new GoogleStrategy(
-      {
-        clientID: googleClientId,
-        clientSecret: googleClientSecret,
-        callbackURL,
-        scope: ['profile', 'email'],
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const email = profile.emails?.[0]?.value;
-          
-          if (!email) {
-            return done(new Error('Não foi possível obter email da conta Google'));
-          }
-
-          // Look for existing user by Google ID first, then by email
-          let user = await storage.getUserByGoogleId(profile.id);
-          
-          if (!user) {
-            user = await storage.getUserByEmail(email);
-          }
-
-          if (user) {
-            // Update Google ID if not set
-            if (!user.googleId) {
-              user = await storage.updateUser(user.id, {
-                googleId: profile.id,
-                profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
-              });
-            }
-          } else {
-            // Create new user from Google profile
-            user = await storage.createUser({
-              email,
-              googleId: profile.id,
-              firstName: profile.name?.givenName || null,
-              lastName: profile.name?.familyName || null,
-              profileImageUrl: profile.photos?.[0]?.value || null,
-              role: 'member',
-            });
-            console.log(`[auth] New user created via Google OAuth: ${email}`);
-          }
-
-          return done(null, user);
-        } catch (error) {
-          return done(error as Error);
-        }
-      }
-    ));
-
-    // Google OAuth routes
-    app.get('/api/auth/google',
-      passport.authenticate('google', { scope: ['profile', 'email'] })
-    );
-
-    app.get('/api/auth/google/callback',
-      passport.authenticate('google', { failureRedirect: '/login?error=google_failed' }),
-      (req, res) => {
-        res.redirect('/');
-      }
-    );
-  } else {
-    console.warn('[auth] Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable.');
-    
-    // Return error if Google auth is attempted without credentials
-    app.get('/api/auth/google', (req, res) => {
-      res.redirect('/login?error=google_not_configured');
-    });
-  }
 
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
@@ -269,90 +156,20 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Login endpoint (email/password)
-  app.post("/api/auth/login", (req, res, next) => {
-    const validation = loginSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ 
-        message: "Dados inválidos",
-        errors: validation.error.errors 
-      });
+  // Rota de login com Google
+  app.get('/api/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
+
+  // Callback do Google
+  app.get('/api/auth/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login?error=google_failed' }),
+    (req, res) => {
+      res.redirect('/');
     }
+  );
 
-    passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) {
-        return res.status(500).json({ message: "Erro no servidor" });
-      }
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Email ou senha incorretos" });
-      }
-      req.logIn(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Erro ao fazer login" });
-        }
-        return res.json({ 
-          message: "Login realizado com sucesso",
-          user: {
-            id: user.id,
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
-          }
-        });
-      });
-    })(req, res, next);
-  });
-
-  // Register endpoint
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const validation = registerSchema.safeParse(req.body);
-      if (!validation.success) {
-        return res.status(400).json({ 
-          message: "Dados inválidos",
-          errors: validation.error.errors 
-        });
-      }
-
-      const { email, password, firstName, lastName } = validation.data;
-
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: "Email já cadastrado" });
-      }
-
-      const passwordHash = await bcrypt.hash(password, 10);
-      
-      const newUser = await storage.createUser({
-        email,
-        passwordHash,
-        firstName: firstName || null,
-        lastName: lastName || null,
-      });
-
-      req.logIn(newUser, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Usuário criado, mas erro ao fazer login" });
-        }
-        return res.status(201).json({
-          message: "Usuário criado com sucesso",
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            firstName: newUser.firstName,
-            lastName: newUser.lastName,
-            role: newUser.role,
-          }
-        });
-      });
-    } catch (error) {
-      console.error("Error registering user:", error);
-      res.status(500).json({ message: "Erro ao criar usuário" });
-    }
-  });
-
-  // Logout endpoint
+  // Logout
   app.post("/api/auth/logout", (req, res) => {
     req.logout((err) => {
       if (err) {
@@ -362,11 +179,9 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  // Check if Google OAuth is configured
+  // Configuração de auth (usado pelo frontend)
   app.get("/api/auth/config", (req, res) => {
-    res.json({
-      googleEnabled: Boolean(googleClientId && googleClientSecret),
-    });
+    res.json({ googleEnabled: true });
   });
 }
 
