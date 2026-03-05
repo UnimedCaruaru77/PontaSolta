@@ -1,5 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
@@ -62,6 +63,25 @@ export function getSession() {
   });
 }
 
+function getCallbackUrl(): string {
+  // In production (published Replit app)
+  if (process.env.REPLIT_DEPLOYMENT === '1') {
+    const slug = process.env.REPL_SLUG;
+    const owner = process.env.REPL_OWNER;
+    if (slug && owner) {
+      return `https://${slug}.${owner}.repl.co/api/auth/google/callback`;
+    }
+  }
+  
+  // In Replit dev environment
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;
+  }
+  
+  // Local development fallback
+  return `http://localhost:5000/api/auth/google/callback`;
+}
+
 async function initializeAdminUser() {
   const adminEmail = process.env.ADMIN_EMAIL || 'luciano.filho@unimedcaruaru.com.br';
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -70,13 +90,13 @@ async function initializeAdminUser() {
     // Check if admin user already exists
     const existingAdmin = await storage.getUserByEmail(adminEmail);
     
-    // If admin already exists with password, we're good
-    if (existingAdmin && existingAdmin.passwordHash) {
+    // If admin already exists with password or Google auth, we're good
+    if (existingAdmin && (existingAdmin.passwordHash || existingAdmin.googleId)) {
       console.log('[auth] Admin user already configured');
       return;
     }
     
-    // Admin doesn't exist or has no password - we MUST have ADMIN_PASSWORD secret
+    // Admin doesn't exist or has no auth method - we MUST have ADMIN_PASSWORD secret
     if (!adminPassword) {
       const errorMsg = `
 ╔═══════════════════════════════════════════════════════════════╗
@@ -99,7 +119,6 @@ async function initializeAdminUser() {
     const passwordHash = await bcrypt.hash(adminPassword, 10);
     
     if (!existingAdmin) {
-      // Create new admin user
       console.log('[auth] Admin user not found in database. Creating default admin user...');
       
       await storage.createUser({
@@ -111,17 +130,14 @@ async function initializeAdminUser() {
       });
       
       console.log(`[auth] ✅ Default admin user created: ${adminEmail}`);
-      console.log('[auth] ⚠️ IMPORTANT: Please change the admin password after first login!');
     } else if (!existingAdmin.passwordHash) {
-      // User exists but has no password - update it
       console.log('[auth] Admin user exists but has no password. Setting password...');
       await storage.updateUser(existingAdmin.id, { passwordHash });
       console.log('[auth] ✅ Admin password set successfully');
-      console.log('[auth] ⚠️ IMPORTANT: Please change the admin password after first login!');
     }
   } catch (error) {
     console.error('[auth] Fatal error initializing admin user:', error);
-    throw error; // Fail fast - don't start the app without admin access
+    throw error;
   }
 }
 
@@ -134,6 +150,7 @@ export async function setupAuth(app: Express) {
   // Initialize admin user if database is empty
   await initializeAdminUser();
 
+  // --- Local Strategy (email/password) ---
   passport.use(new LocalStrategy(
     {
       usernameField: 'email',
@@ -148,7 +165,7 @@ export async function setupAuth(app: Express) {
         }
 
         if (!user.passwordHash) {
-          return done(null, false, { message: 'Usuário não configurado para login local' });
+          return done(null, false, { message: 'Esta conta usa login pelo Google. Clique em "Entrar com Google".' });
         }
 
         const isValidPassword = await bcrypt.compare(password, user.passwordHash);
@@ -164,6 +181,84 @@ export async function setupAuth(app: Express) {
     }
   ));
 
+  // --- Google OAuth Strategy ---
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (googleClientId && googleClientSecret) {
+    const callbackURL = getCallbackUrl();
+    console.log(`[auth] Google OAuth enabled. Callback URL: ${callbackURL}`);
+
+    passport.use(new GoogleStrategy(
+      {
+        clientID: googleClientId,
+        clientSecret: googleClientSecret,
+        callbackURL,
+        scope: ['profile', 'email'],
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          
+          if (!email) {
+            return done(new Error('Não foi possível obter email da conta Google'));
+          }
+
+          // Look for existing user by Google ID first, then by email
+          let user = await storage.getUserByGoogleId(profile.id);
+          
+          if (!user) {
+            user = await storage.getUserByEmail(email);
+          }
+
+          if (user) {
+            // Update Google ID if not set
+            if (!user.googleId) {
+              user = await storage.updateUser(user.id, {
+                googleId: profile.id,
+                profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
+              });
+            }
+          } else {
+            // Create new user from Google profile
+            user = await storage.createUser({
+              email,
+              googleId: profile.id,
+              firstName: profile.name?.givenName || null,
+              lastName: profile.name?.familyName || null,
+              profileImageUrl: profile.photos?.[0]?.value || null,
+              role: 'member',
+            });
+            console.log(`[auth] New user created via Google OAuth: ${email}`);
+          }
+
+          return done(null, user);
+        } catch (error) {
+          return done(error as Error);
+        }
+      }
+    ));
+
+    // Google OAuth routes
+    app.get('/api/auth/google',
+      passport.authenticate('google', { scope: ['profile', 'email'] })
+    );
+
+    app.get('/api/auth/google/callback',
+      passport.authenticate('google', { failureRedirect: '/login?error=google_failed' }),
+      (req, res) => {
+        res.redirect('/');
+      }
+    );
+  } else {
+    console.warn('[auth] Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable.');
+    
+    // Return error if Google auth is attempted without credentials
+    app.get('/api/auth/google', (req, res) => {
+      res.redirect('/login?error=google_not_configured');
+    });
+  }
+
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
   });
@@ -177,9 +272,8 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Login endpoint
+  // Login endpoint (email/password)
   app.post("/api/auth/login", (req, res, next) => {
-    // Validate request body
     const validation = loginSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ 
@@ -216,7 +310,6 @@ export async function setupAuth(app: Express) {
   // Register endpoint
   app.post("/api/auth/register", async (req, res) => {
     try {
-      // Validate request body
       const validation = registerSchema.safeParse(req.body);
       if (!validation.success) {
         return res.status(400).json({ 
@@ -269,6 +362,13 @@ export async function setupAuth(app: Express) {
         return res.status(500).json({ message: "Erro ao fazer logout" });
       }
       res.json({ message: "Logout realizado com sucesso" });
+    });
+  });
+
+  // Check if Google OAuth is configured
+  app.get("/api/auth/config", (req, res) => {
+    res.json({
+      googleEnabled: Boolean(googleClientId && googleClientSecret),
     });
   });
 }
