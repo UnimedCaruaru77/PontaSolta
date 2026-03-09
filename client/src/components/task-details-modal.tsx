@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TaskComments } from "./task-comments";
 import { TaskAuditLog } from "./task-audit-log";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -318,35 +319,52 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                   </div>
                 </div>
 
-                <div className="bg-black/40 p-4 rounded border border-primary/20 space-y-2">
+                <div className="bg-black/40 p-4 rounded border border-primary/20 space-y-3">
                   <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
                     <Calendar className="size-4" /> Prazos
                   </h4>
-                  {task.startDate && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Clock className="size-4 text-gray-400" />
-                      <span className="text-gray-400">Início:</span>
-                      <span>{new Date(task.startDate).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                  )}
-                  {task.dueDate && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <AlertTriangle className="size-4 text-orange-400" />
-                      <span className="text-gray-400">Prazo:</span>
-                      <span className={new Date(task.dueDate) < new Date() && task.status !== 'done' ? 'text-red-400 font-semibold' : ''}>
-                        {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                  )}
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <Clock className="size-3" /> Data de início
+                    </p>
+                    <Input
+                      type="date"
+                      className="bg-black/40 border-primary/30 text-white h-8 text-xs [color-scheme:dark]"
+                      value={task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : ''}
+                      disabled={updateMutation.isPending}
+                      onChange={e => {
+                        const val = e.target.value;
+                        updateMutation.mutate({ startDate: val ? new Date(val).toISOString() : null });
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className={`text-xs flex items-center gap-1 ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' ? 'text-red-400' : 'text-gray-400'}`}>
+                      <AlertTriangle className="size-3" />
+                      {task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
+                        ? 'Prazo vencido — repactue abaixo'
+                        : 'Prazo final'}
+                    </p>
+                    <Input
+                      type="date"
+                      className={`bg-black/40 border-primary/30 text-white h-8 text-xs [color-scheme:dark] ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' ? 'border-red-500/60' : ''}`}
+                      value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
+                      disabled={updateMutation.isPending}
+                      onChange={e => {
+                        const val = e.target.value;
+                        updateMutation.mutate({ dueDate: val ? new Date(val).toISOString() : null });
+                      }}
+                    />
+                  </div>
+
                   {task.completedAt && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="size-4 text-green-400" />
-                      <span className="text-gray-400">Concluído em:</span>
-                      <span className="text-green-400">{new Date(task.completedAt).toLocaleDateString('pt-BR')}</span>
+                    <div className="flex items-center gap-2 text-sm pt-1 border-t border-primary/10">
+                      <CheckCircle2 className="size-4 text-green-400 shrink-0" />
+                      <span className="text-gray-400 text-xs">Concluído em:</span>
+                      <span className="text-green-400 text-xs">{new Date(task.completedAt).toLocaleDateString('pt-BR')}</span>
                     </div>
-                  )}
-                  {!task.startDate && !task.dueDate && (
-                    <p className="text-gray-500 text-xs">Nenhum prazo definido</p>
                   )}
                 </div>
               </div>
