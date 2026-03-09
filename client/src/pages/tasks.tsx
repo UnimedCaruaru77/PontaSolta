@@ -76,15 +76,16 @@ export default function Tasks() {
   const formatDeadline = (dueDate: Date | string | null) => {
     if (!dueDate) return "Sem prazo";
     const date = new Date(dueDate);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((dateDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
     if (diffDays === 0) return "Hoje";
     if (diffDays === 1) return "Amanhã";
     if (diffDays < 0) return "Atrasado";
     if (diffDays <= 7) return `${diffDays} dias`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('pt-BR');
   };
 
   const getCreatorName = (task: TaskWithDetails) => {
