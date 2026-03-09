@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import TaskDetailModal from "@/components/task-detail-modal";
+import { TaskDetailsModal } from "@/components/task-details-modal";
 import { cn } from "@/lib/utils";
 import type { TaskWithDetails } from "@shared/schema";
 
@@ -245,10 +245,10 @@ export default function Tasks() {
         </Card>
       </div>
 
-      <TaskDetailModal
+      <TaskDetailsModal
         taskId={selectedTaskId}
         open={!!selectedTaskId}
-        onClose={() => setSelectedTaskId(null)}
+        onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}
       />
     </>
   );
