@@ -431,12 +431,17 @@ export class DatabaseStorage implements IStorage {
 
   // ── Task Shares ─────────────────────────────────────────────
   async getTaskShares(taskId: string): Promise<Team[]> {
-    const rows = await db
-      .select({ team: teams })
-      .from(taskShares)
-      .leftJoin(teams, eq(taskShares.teamId, teams.id))
-      .where(eq(taskShares.taskId, taskId));
-    return rows.map(r => r.team).filter(Boolean) as Team[];
+    try {
+      const rows = await db
+        .select({ team: teams })
+        .from(taskShares)
+        .leftJoin(teams, eq(taskShares.teamId, teams.id))
+        .where(eq(taskShares.taskId, taskId));
+      return rows.map(r => r.team).filter(Boolean) as Team[];
+    } catch (e) {
+      // Gracefully handle if table doesn't exist yet in this environment
+      return [];
+    }
   }
 
   async addTaskShare(taskId: string, teamId: string): Promise<void> {

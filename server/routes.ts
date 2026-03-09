@@ -217,7 +217,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status) filters.status = status;
       const tasksList = await storage.getTasks(filters);
       res.json(tasksList);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("[tasks] GET /api/tasks error:", error?.message || error);
       res.status(500).json({ message: "Failed to fetch tasks" });
     }
   });

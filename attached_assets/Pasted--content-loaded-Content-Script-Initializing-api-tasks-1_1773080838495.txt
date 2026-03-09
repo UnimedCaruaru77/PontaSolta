@@ -1,0 +1,152 @@
+ content loaded
+ Content Script: Initializing
+/api/tasks:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+ WebSocket connection to 'ws://localhost:8081/' failed: 
+initClient @ chrome-extension://f…ockpc/refresh.js:27
+/api/tasks:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+/api/tasks:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+ 
+            
+            
+           GET https://pontasolta.replit.app/api/tasks 500 (Internal Server Error)
+(anônimo) @ assets/index-RALb-ohW.js:48
+i @ assets/index-RALb-ohW.js:48
+w @ assets/index-RALb-ohW.js:48
+start @ assets/index-RALb-ohW.js:48
+fetch @ assets/index-RALb-ohW.js:48
+ho @ assets/index-RALb-ohW.js:48
+onSubscribe @ assets/index-RALb-ohW.js:48
+subscribe @ assets/index-RALb-ohW.js:48
+(anônimo) @ assets/index-RALb-ohW.js:48
+F1 @ assets/index-RALb-ohW.js:38
+zu @ assets/index-RALb-ohW.js:40
+na @ assets/index-RALb-ohW.js:40
+y2 @ assets/index-RALb-ohW.js:40
+Qs @ assets/index-RALb-ohW.js:40
+Vg @ assets/index-RALb-ohW.js:40
+zs @ assets/index-RALb-ohW.js:38
+(anônimo) @ assets/index-RALb-ohW.js:40
+ 
+            
+            
+           GET https://pontasolta.replit.app/api/tasks 500 (Internal Server Error)
+queryFn @ assets/index-RALb-ohW.js:297
+i @ assets/index-RALb-ohW.js:48
+w @ assets/index-RALb-ohW.js:48
+start @ assets/index-RALb-ohW.js:48
+fetch @ assets/index-RALb-ohW.js:48
+ho @ assets/index-RALb-ohW.js:48
+onSubscribe @ assets/index-RALb-ohW.js:48
+subscribe @ assets/index-RALb-ohW.js:48
+(anônimo) @ assets/index-RALb-ohW.js:48
+F1 @ assets/index-RALb-ohW.js:38
+zu @ assets/index-RALb-ohW.js:40
+na @ assets/index-RALb-ohW.js:40
+y2 @ assets/index-RALb-ohW.js:40
+Qs @ assets/index-RALb-ohW.js:40
+Vg @ assets/index-RALb-ohW.js:40
+zs @ assets/index-RALb-ohW.js:38
+(anônimo) @ assets/index-RALb-ohW.js:40
+ TypeError: w.filter is not a function
+    at g (assets/index-RALb-ohW.js:297:52597)
+    at assets/index-RALb-ohW.js:297:55056
+    at Array.map (<anonymous>)
+    at sL (assets/index-RALb-ohW.js:297:55040)
+    at Th (assets/index-RALb-ohW.js:38:16998)
+    at Wf (assets/index-RALb-ohW.js:40:3139)
+    at wN (assets/index-RALb-ohW.js:40:44737)
+    at vN (assets/index-RALb-ohW.js:40:39727)
+    at p2 (assets/index-RALb-ohW.js:40:39655)
+    at tu (assets/index-RALb-ohW.js:40:39508)
+qf @ assets/index-RALb-ohW.js:40
+J1.r.callback @ assets/index-RALb-ohW.js:40
+Ng @ assets/index-RALb-ohW.js:38
+Lg @ assets/index-RALb-ohW.js:40
+hN @ assets/index-RALb-ohW.js:40
+f2 @ assets/index-RALb-ohW.js:40
+y2 @ assets/index-RALb-ohW.js:40
+Qs @ assets/index-RALb-ohW.js:40
+Vg @ assets/index-RALb-ohW.js:40
+zs @ assets/index-RALb-ohW.js:38
+(anônimo) @ assets/index-RALb-ohW.js:40
+setTimeout
+s @ assets/index-RALb-ohW.js:48
+a @ assets/index-RALb-ohW.js:48
+batch @ assets/index-RALb-ohW.js:48
+Tn @ assets/index-RALb-ohW.js:48
+setData @ assets/index-RALb-ohW.js:48
+onSuccess @ assets/index-RALb-ohW.js:48
+h @ assets/index-RALb-ohW.js:48
+Promise.then
+w @ assets/index-RALb-ohW.js:48
+start @ assets/index-RALb-ohW.js:48
+fetch @ assets/index-RALb-ohW.js:48
+ho @ assets/index-RALb-ohW.js:48
+onSubscribe @ assets/index-RALb-ohW.js:48
+subscribe @ assets/index-RALb-ohW.js:48
+(anônimo) @ assets/index-RALb-ohW.js:48
+F1 @ assets/index-RALb-ohW.js:38
+zu @ assets/index-RALb-ohW.js:40
+na @ assets/index-RALb-ohW.js:40
+y2 @ assets/index-RALb-ohW.js:40
+Qs @ assets/index-RALb-ohW.js:40
+Vg @ assets/index-RALb-ohW.js:40
+zs @ assets/index-RALb-ohW.js:38
+(anônimo) @ assets/index-RALb-ohW.js:40
+assets/index-RALb-ohW.js:297 Uncaught TypeError: w.filter is not a function
+    at g (assets/index-RALb-ohW.js:297:52597)
+    at assets/index-RALb-ohW.js:297:55056
+    at Array.map (<anonymous>)
+    at sL (assets/index-RALb-ohW.js:297:55040)
+    at Th (assets/index-RALb-ohW.js:38:16998)
+    at Wf (assets/index-RALb-ohW.js:40:3139)
+    at wN (assets/index-RALb-ohW.js:40:44737)
+    at vN (assets/index-RALb-ohW.js:40:39727)
+    at p2 (assets/index-RALb-ohW.js:40:39655)
+    at tu (assets/index-RALb-ohW.js:40:39508)
+g @ assets/index-RALb-ohW.js:297
+(anônimo) @ assets/index-RALb-ohW.js:297
+sL @ assets/index-RALb-ohW.js:297
+Th @ assets/index-RALb-ohW.js:38
+Wf @ assets/index-RALb-ohW.js:40
+wN @ assets/index-RALb-ohW.js:40
+vN @ assets/index-RALb-ohW.js:40
+p2 @ assets/index-RALb-ohW.js:40
+tu @ assets/index-RALb-ohW.js:40
+rm @ assets/index-RALb-ohW.js:40
+Vg @ assets/index-RALb-ohW.js:40
+zs @ assets/index-RALb-ohW.js:38
+(anônimo) @ assets/index-RALb-ohW.js:40
+setTimeout
+s @ assets/index-RALb-ohW.js:48
+a @ assets/index-RALb-ohW.js:48
+batch @ assets/index-RALb-ohW.js:48
+Tn @ assets/index-RALb-ohW.js:48
+setData @ assets/index-RALb-ohW.js:48
+onSuccess @ assets/index-RALb-ohW.js:48
+h @ assets/index-RALb-ohW.js:48
+Promise.then
+w @ assets/index-RALb-ohW.js:48
+start @ assets/index-RALb-ohW.js:48
+fetch @ assets/index-RALb-ohW.js:48
+ho @ assets/index-RALb-ohW.js:48
+onSubscribe @ assets/index-RALb-ohW.js:48
+subscribe @ assets/index-RALb-ohW.js:48
+(anônimo) @ assets/index-RALb-ohW.js:48
+F1 @ assets/index-RALb-ohW.js:38
+zu @ assets/index-RALb-ohW.js:40
+na @ assets/index-RALb-ohW.js:40
+y2 @ assets/index-RALb-ohW.js:40
+Qs @ assets/index-RALb-ohW.js:40
+Vg @ assets/index-RALb-ohW.js:40
+zs @ assets/index-RALb-ohW.js:38
+(anônimo) @ assets/index-RALb-ohW.js:40

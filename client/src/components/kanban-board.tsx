@@ -51,6 +51,7 @@ export default function KanbanBoard() {
         ? `teamId=${selectedTeamId}`
         : '';
       const res = await fetch(`/api/tasks${qs ? '?' + qs : ''}`, { credentials: 'include' });
+      if (!res.ok) throw new Error("Failed to fetch tasks");
       return res.json();
     },
   });
