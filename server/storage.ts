@@ -43,6 +43,8 @@ export interface IStorage {
   // Team operations
   getTeam(id: string): Promise<TeamWithMembers | undefined>;
   getTeams(): Promise<TeamWithMembers[]>;
+  getTeamsByUser(userId: string): Promise<TeamWithMembers[]>;
+  getTeamIdsByUser(userId: string): Promise<string[]>;
   createTeam(team: InsertTeam): Promise<Team>;
   updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team>;
   deleteTeam(id: string): Promise<void>;
@@ -62,8 +64,10 @@ export interface IStorage {
     assigneeId?: string;
     creatorId?: string;
     teamId?: string;
+    teamIds?: string[];
     boardId?: string;
     status?: string;
+    requestingUserId?: string;
   }): Promise<TaskWithDetails[]>;
   getTask(id: string): Promise<TaskWithDetails | undefined>;
   createTask(task: InsertTask): Promise<Task>;
@@ -187,6 +191,25 @@ export class DatabaseStorage implements IStorage {
     return Promise.all(allTeams.map(t => this.enrichTeam(t)));
   }
 
+  async getTeamIdsByUser(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ teamId: teamMembers.teamId })
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, userId));
+    return rows.map(r => r.teamId);
+  }
+
+  async getTeamsByUser(userId: string): Promise<TeamWithMembers[]> {
+    const teamIds = await this.getTeamIdsByUser(userId);
+    if (teamIds.length === 0) return [];
+    const userTeams = await db
+      .select()
+      .from(teams)
+      .where(inArray(teams.id, teamIds))
+      .orderBy(teams.name);
+    return Promise.all(userTeams.map(t => this.enrichTeam(t)));
+  }
+
   async createTeam(team: InsertTeam): Promise<Team> {
     const [newTeam] = await db.insert(teams).values(team).returning();
     return newTeam;
@@ -259,8 +282,10 @@ export class DatabaseStorage implements IStorage {
     assigneeId?: string;
     creatorId?: string;
     teamId?: string;
+    teamIds?: string[];
     boardId?: string;
     status?: string;
+    requestingUserId?: string;
   }): Promise<TaskWithDetails[]> {
     const assigneeAlias = alias(users, 'assignee');
     const creatorAlias = alias(users, 'creator');
@@ -271,6 +296,29 @@ export class DatabaseStorage implements IStorage {
     if (filters?.teamId) conditions.push(eq(tasks.teamId, filters.teamId));
     if (filters?.boardId) conditions.push(eq(tasks.boardId, filters.boardId));
     if (filters?.status) conditions.push(eq(tasks.status, filters.status as any));
+
+    // Restrição por lista de equipes (para membros): task da equipe OU assignee/creator é o próprio usuário
+    if (filters?.teamIds && filters.teamIds.length > 0) {
+      const uid = filters.requestingUserId;
+      const teamFilter = inArray(tasks.teamId, filters.teamIds);
+      if (uid) {
+        conditions.push(
+          or(teamFilter, eq(tasks.assigneeId, uid), eq(tasks.creatorId, uid))
+        );
+      } else {
+        conditions.push(teamFilter);
+      }
+    } else if (filters?.teamIds && filters.teamIds.length === 0) {
+      // Membro sem equipes: só vê tasks onde é assignee ou creator
+      if (filters.requestingUserId) {
+        conditions.push(
+          or(eq(tasks.assigneeId, filters.requestingUserId), eq(tasks.creatorId, filters.requestingUserId))
+        );
+      } else {
+        // Sem equipes e sem usuário: retorna nada
+        return [];
+      }
+    }
 
     const results = await db
       .select({

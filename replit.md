@@ -2,6 +2,14 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with Kanban boards (Teams > Boards > Cards), team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
+## Recent Changes (v3.2.0 - March 2026)
+
+### Controle de Visibilidade por Papel
+- **Membros veem só suas equipes**: `GET /api/teams` filtra automaticamente — membro recebe apenas as equipes em que é cadastrado; admin/gestor veem todas.
+- **Membros veem só tasks das suas equipes**: `GET /api/tasks` restringe automaticamente para membros — retorna apenas tasks cujo `teamId` está nas equipes do membro, mais tasks onde o membro é assignee ou creator.
+- **Proteção de boards por equipe**: `GET /api/teams/:id/boards` retorna `[]` se o membro não pertencer àquela equipe.
+- **Novos métodos no storage**: `getTeamsByUser(userId)`, `getTeamIdsByUser(userId)` e suporte a filtro `teamIds` em `getTasks()`.
+
 ## Recent Changes (v3.1.0 - March 2026)
 
 ### Bug Fixes

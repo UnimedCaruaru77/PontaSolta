@@ -69,7 +69,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ── Teams ────────────────────────────────────────────────────
   app.get('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
-      const teamsList = await storage.getTeams();
+      const isMember = req.user.role === 'member';
+      const teamsList = isMember
+        ? await storage.getTeamsByUser(req.user.id)
+        : await storage.getTeams();
       res.json(teamsList);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch teams" });
@@ -146,6 +149,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/teams/:id/boards', isAuthenticated, async (req: any, res) => {
     try {
+      if (req.user.role === 'member') {
+        const memberTeamIds = await storage.getTeamIdsByUser(req.user.id);
+        if (!memberTeamIds.includes(req.params.id)) {
+          return res.json([]);
+        }
+      }
       const boardsList = await storage.getBoardsByTeam(req.params.id);
       res.json(boardsList);
     } catch (error) {
@@ -212,9 +221,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {};
       if (assigneeId) filters.assigneeId = assigneeId;
       if (creatorId) filters.creatorId = creatorId;
-      if (teamId) filters.teamId = teamId;
       if (boardId) filters.boardId = boardId;
       if (status) filters.status = status;
+
+      const isMember = req.user.role === 'member';
+
+      if (isMember) {
+        // Membro: restringir às equipes que pertence
+        const memberTeamIds = await storage.getTeamIdsByUser(req.user.id);
+        if (teamId) {
+          // Se pediu uma equipe específica, verificar se tem acesso
+          if (!memberTeamIds.includes(teamId as string)) {
+            return res.json([]);
+          }
+          filters.teamId = teamId;
+        } else {
+          // Sem filtro de equipe: aplicar restrição automática
+          filters.teamIds = memberTeamIds;
+          filters.requestingUserId = req.user.id;
+        }
+      } else {
+        // Admin/gestor: sem restrição
+        if (teamId) filters.teamId = teamId;
+      }
+
       const tasksList = await storage.getTasks(filters);
       res.json(tasksList);
     } catch (error: any) {
