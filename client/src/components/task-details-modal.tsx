@@ -13,11 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Calendar, User, Clock, AlertTriangle, CheckSquare,
-  MessageSquare, FileText, History, Hash, CheckCircle2, XCircle
+  MessageSquare, FileText, History, Hash, CheckCircle2, XCircle,
+  Users, Share2, X, Plus, ArrowRightLeft
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { TaskWithDetails, User as UserType } from "@shared/schema";
+import type { TaskWithDetails, User as UserType, Team } from "@shared/schema";
 
 interface TaskDetailsModalProps {
   taskId: string | null;
@@ -45,6 +46,11 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     enabled: open,
   });
 
+  const { data: allTeams = [] } = useQuery<Team[]>({
+    queryKey: ["/api/teams"],
+    enabled: open,
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
@@ -60,7 +66,29 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
       invalidate();
       toast({ title: "Tarefa atualizada com sucesso!" });
     },
-    onError: () => toast({ title: "Erro ao atualizar tarefa", variant: "destructive" }),
+    onError: (err: any) => toast({ title: err?.message || "Erro ao atualizar tarefa", variant: "destructive" }),
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      await apiRequest("POST", `/api/tasks/${taskId}/shares`, { teamId });
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Card compartilhado com a equipe!" });
+    },
+    onError: () => toast({ title: "Erro ao compartilhar", variant: "destructive" }),
+  });
+
+  const unshareMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      await apiRequest("DELETE", `/api/tasks/${taskId}/shares/${teamId}`);
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Compartilhamento removido." });
+    },
+    onError: () => toast({ title: "Erro ao remover compartilhamento", variant: "destructive" }),
   });
 
   if (!task && !isLoading) return null;
@@ -81,9 +109,11 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     return Math.round((task.subtasks.filter(st => st.completed).length / task.subtasks.length) * 100);
   };
 
-  const statusLabel: Record<string, string> = {
-    todo: 'A Fazer', in_progress: 'Em Progresso', review: 'Em Revisão', done: 'Concluído',
-  };
+  // Teams not yet associated (neither owner nor shared)
+  const currentSharedTeamIds = new Set((task?.sharedTeams || []).map(t => t.id));
+  const availableToShare = (allTeams as Team[]).filter(
+    t => t.id !== task?.teamId && !currentSharedTeamIds.has(t.id)
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -131,7 +161,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                     onValueChange={v => updateMutation.mutate({ status: v })}
                     disabled={updateMutation.isPending}
                   >
-                    <SelectTrigger className="bg-primary/20 text-primary border-primary/50 hover:bg-primary/30 h-8 text-xs" data-testid="select-status">
+                    <SelectTrigger className="bg-primary/20 text-primary border-primary/50 hover:bg-primary/30 h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-black border-primary/50">
@@ -321,6 +351,99 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                 </div>
               </div>
 
+              {/* Team Transfer + Sharing */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Transfer team */}
+                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                  <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                    <ArrowRightLeft className="size-4" /> Equipe Responsável
+                  </h4>
+                  <p className="text-xs text-gray-400 mb-3">
+                    Transferir para outra equipe remove o responsável e o quadro atual, mantendo todos os demais dados.
+                  </p>
+                  <Select
+                    value={task.teamId || "none"}
+                    onValueChange={v => {
+                      const newTeamId = v === 'none' ? null : v;
+                      updateMutation.mutate({ teamId: newTeamId, assigneeId: null, boardId: null });
+                    }}
+                    disabled={updateMutation.isPending}
+                  >
+                    <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30">
+                      <SelectValue placeholder="Sem equipe" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-black border-primary/50">
+                      <SelectItem value="none">Sem equipe</SelectItem>
+                      {(allTeams as Team[]).map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {task.board && (
+                    <p className="text-xs text-yellow-400/70 mt-2">
+                      Quadro atual: {task.board.name} — será removido ao transferir.
+                    </p>
+                  )}
+                </div>
+
+                {/* Share with teams */}
+                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                  <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                    <Share2 className="size-4" /> Compartilhar com Equipes
+                  </h4>
+                  <p className="text-xs text-gray-400 mb-3">
+                    Compartilhe o mérito desta entrega com outras equipes.
+                  </p>
+
+                  {/* Current shared teams */}
+                  <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
+                    {(task.sharedTeams || []).length === 0 ? (
+                      <span className="text-xs text-gray-500">Nenhuma equipe ainda</span>
+                    ) : (
+                      (task.sharedTeams || []).map(t => (
+                        <Badge
+                          key={t.id}
+                          className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs pr-1 flex items-center gap-1"
+                        >
+                          <Users className="size-3" />
+                          {t.name}
+                          <button
+                            onClick={() => unshareMutation.mutate(t.id)}
+                            disabled={unshareMutation.isPending}
+                            className="ml-1 hover:text-red-400 transition-colors"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add new team to share */}
+                  {availableToShare.length > 0 && (
+                    <Select
+                      value=""
+                      onValueChange={v => { if (v) shareMutation.mutate(v); }}
+                      disabled={shareMutation.isPending}
+                    >
+                      <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30">
+                        <Plus className="size-3 mr-1" />
+                        <SelectValue placeholder="Adicionar equipe..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-black border-primary/50">
+                        {availableToShare.map(t => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+
               {/* Subtasks */}
               {task.subtasks && task.subtasks.length > 0 && (
                 <div className="bg-black/40 p-4 rounded border border-primary/20">
@@ -350,19 +473,12 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                 </div>
               )}
 
-              {/* Board / Team */}
-              {(task.board || task.team) && (
+              {/* Board badge */}
+              {task.board && (
                 <div className="flex gap-2 flex-wrap">
-                  {task.team && (
-                    <Badge className="bg-muted/50 text-muted-foreground border-border text-xs">
-                      Equipe: {task.team.name}
-                    </Badge>
-                  )}
-                  {task.board && (
-                    <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
-                      Quadro: {task.board.name}
-                    </Badge>
-                  )}
+                  <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
+                    Quadro: {task.board.name}
+                  </Badge>
                 </div>
               )}
 

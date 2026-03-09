@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./localAuth";
-import { insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema, insertTeamSchema, insertBoardSchema } from "@shared/schema";
+import { insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema, insertTeamSchema, insertBoardSchema, insertUserSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -34,6 +34,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(allUsers);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post('/api/users', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+        return res.status(403).json({ message: "Sem permissão para criar usuários" });
+      }
+      const userData = insertUserSchema.partial().parse(req.body);
+      if (!userData.email) return res.status(400).json({ message: "Email é obrigatório" });
+      const existing = await storage.getUserByEmail(userData.email);
+      if (existing) return res.status(409).json({ message: "Usuário com este email já existe" });
+      const newUser = await storage.createUser({ ...userData, role: userData.role || 'member' });
+      res.status(201).json(newUser);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao criar usuário" });
+    }
+  });
+
+  app.patch('/api/users/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+        return res.status(403).json({ message: "Sem permissão para editar este usuário" });
+      }
+      const updated = await storage.updateUser(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Falha ao atualizar usuário" });
     }
   });
 
@@ -226,7 +255,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const oldTask = await storage.getTask(taskId);
       if (!oldTask) return res.status(404).json({ message: "Task not found" });
 
-      const task = await storage.updateTask(taskId, req.body);
+      // Coerce date strings to Date objects via Zod before passing to Drizzle
+      const parsed = insertTaskSchema.partial().parse(req.body);
+      const task = await storage.updateTask(taskId, parsed as any);
 
       const auditLogs = [];
       for (const [field, newValue] of Object.entries(req.body)) {
@@ -242,7 +273,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await Promise.all(auditLogs);
       res.json(task);
     } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
       res.status(500).json({ message: "Failed to update task" });
+    }
+  });
+
+  // ── Task Shares ───────────────────────────────────────────────
+  app.get('/api/tasks/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const sharedTeams = await storage.getTaskShares(req.params.id);
+      res.json(sharedTeams);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch task shares" });
+    }
+  });
+
+  app.post('/api/tasks/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const { teamId } = req.body;
+      if (!teamId) return res.status(400).json({ message: "teamId é obrigatório" });
+      await storage.addTaskShare(req.params.id, teamId);
+      res.status(201).json({ message: "Equipe adicionada ao compartilhamento" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to share task" });
+    }
+  });
+
+  app.delete('/api/tasks/:id/shares/:teamId', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.removeTaskShare(req.params.id, req.params.teamId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove task share" });
     }
   });
 

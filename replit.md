@@ -2,6 +2,24 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with Kanban boards (Teams > Boards > Cards), team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
+## Recent Changes (v3.1.0 - March 2026)
+
+### Bug Fixes
+- **PATCH tarefa (500)**: Corrigido erro ao marcar tarefa como concluída. O problema era que `completedAt: new Date().toISOString()` chegava como string ao Drizzle, que espera `Date`. Adicionado `insertTaskSchema.partial().parse(req.body)` na rota PATCH para coerção correta. O schema também foi atualizado para aceitar `null` nos campos de data (necessário ao reabrir tarefa).
+- **Botão "Novo Usuário"**: Implementado dialog completo para cadastro de usuários com campos email, nome, sobrenome e papel.
+
+### Novas Features
+- **Transferência de Equipe**: No modal de detalhes do card, novo seletor "Equipe Responsável" permite mover o card para outra equipe. Ao transferir, o responsável e o quadro são limpos automaticamente (mantendo todos os demais dados).
+- **Compartilhamento de Card**: Cards podem ser compartilhados com múltiplas equipes para registrar mérito coletivo. Nova seção "Compartilhar com Equipes" no modal mostra badges das equipes com opção de remover e selector para adicionar novas.
+- **Novo endpoint POST /api/users**: Criação de usuários pelo painel (admin/gestor). Ao criar, o email é pré-cadastrado e quando o usuário fizer login via Google, seu acesso será concedido automaticamente.
+- **Novos endpoints PATCH /api/users/:id**: Edição de dados de usuários.
+- **Endpoints de compartilhamento**: GET/POST/DELETE /api/tasks/:id/shares para gerenciar compartilhamentos.
+
+### Schema
+- Nova tabela `task_shares` (taskId, teamId, sharedAt) — many-to-many para cards compartilhados entre equipes
+- `TaskWithDetails` agora inclui campo `sharedTeams: Team[]`
+- `insertUserSchema` exportado do schema para criação de usuários
+
 ## Recent Changes (v3.0.0 - March 2026)
 
 ### Teams > Boards > Cards Hierarchy

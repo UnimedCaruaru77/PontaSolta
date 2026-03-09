@@ -4,6 +4,7 @@ import {
   teamMembers,
   boards,
   tasks,
+  taskShares,
   subtasks,
   taskComments,
   taskAuditLog,
@@ -81,6 +82,11 @@ export interface IStorage {
   // Audit log operations
   createAuditLog(auditLog: InsertTaskAuditLog): Promise<TaskAuditLog>;
   getTaskAuditLogs(taskId: string): Promise<(TaskAuditLog & { user: User })[]>;
+
+  // Task sharing operations
+  getTaskShares(taskId: string): Promise<Team[]>;
+  addTaskShare(taskId: string, teamId: string): Promise<void>;
+  removeTaskShare(taskId: string, teamId: string): Promise<void>;
 
   // Dashboard stats
   getDashboardStats(userId: string): Promise<{
@@ -300,6 +306,8 @@ export class DatabaseStorage implements IStorage {
         .where(eq(taskComments.taskId, result.task.id))
         .orderBy(desc(taskComments.createdAt));
 
+      const sharedTeams = await this.getTaskShares(result.task.id);
+
       tasksWithDetails.push({
         ...result.task,
         assignee: result.assignee,
@@ -308,6 +316,7 @@ export class DatabaseStorage implements IStorage {
         board: result.board,
         subtasks: taskSubtasks,
         comments: commentsData.map((c: any) => ({ ...c.comment, user: c.user })),
+        sharedTeams,
       });
     }
     return tasksWithDetails;
@@ -343,6 +352,8 @@ export class DatabaseStorage implements IStorage {
       .where(eq(taskComments.taskId, id))
       .orderBy(desc(taskComments.createdAt));
 
+    const sharedTeams = await this.getTaskShares(id);
+
     return {
       ...result.task,
       assignee: result.assignee,
@@ -351,6 +362,7 @@ export class DatabaseStorage implements IStorage {
       board: result.board,
       subtasks: taskSubtasks,
       comments: commentsData.map((c: any) => ({ ...c.comment, user: c.user })),
+      sharedTeams,
     };
   }
 
@@ -415,6 +427,29 @@ export class DatabaseStorage implements IStorage {
       .where(eq(taskAuditLog.taskId, taskId))
       .orderBy(desc(taskAuditLog.createdAt));
     return logsData.map(({ log, user }) => ({ ...log, user: user! }));
+  }
+
+  // ── Task Shares ─────────────────────────────────────────────
+  async getTaskShares(taskId: string): Promise<Team[]> {
+    const rows = await db
+      .select({ team: teams })
+      .from(taskShares)
+      .leftJoin(teams, eq(taskShares.teamId, teams.id))
+      .where(eq(taskShares.taskId, taskId));
+    return rows.map(r => r.team).filter(Boolean) as Team[];
+  }
+
+  async addTaskShare(taskId: string, teamId: string): Promise<void> {
+    await db
+      .insert(taskShares)
+      .values({ taskId, teamId })
+      .onConflictDoNothing();
+  }
+
+  async removeTaskShare(taskId: string, teamId: string): Promise<void> {
+    await db
+      .delete(taskShares)
+      .where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
   }
 
   // ── Dashboard stats ────────────────────────────────────────

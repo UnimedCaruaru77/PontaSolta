@@ -118,6 +118,13 @@ export const taskAuditLog = pgTable("task_audit_log", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Task sharing: a card can be shared with multiple teams (for shared merit)
+export const taskShares = pgTable("task_shares", {
+  taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  sharedAt: timestamp("shared_at").defaultNow(),
+}, (table) => [primaryKey({ columns: [table.taskId, table.teamId] })]);
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   teamMemberships: many(teamMembers),
@@ -176,9 +183,15 @@ export const taskAuditLogRelations = relations(taskAuditLog, ({ one }) => ({
   user: one(users, { fields: [taskAuditLog.userId], references: [users.id] }),
 }));
 
+export const taskSharesRelations = relations(taskShares, ({ one }) => ({
+  task: one(tasks, { fields: [taskShares.taskId], references: [tasks.id] }),
+  team: one(teams, { fields: [taskShares.teamId], references: [teams.id] }),
+}));
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = typeof teams.$inferInsert;
@@ -193,9 +206,9 @@ export type InsertTask = typeof tasks.$inferInsert;
 export const insertTaskSchema = createInsertSchema(tasks)
   .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({
-    startDate: z.coerce.date().optional(),
-    dueDate: z.coerce.date().optional(),
-    completedAt: z.coerce.date().optional(),
+    startDate: z.union([z.coerce.date(), z.null()]).optional(),
+    dueDate: z.union([z.coerce.date(), z.null()]).optional(),
+    completedAt: z.union([z.coerce.date(), z.null()]).optional(),
   });
 
 export type Subtask = typeof subtasks.$inferSelect;
@@ -219,6 +232,7 @@ export type TaskWithDetails = Task & {
   subtasks: Subtask[];
   comments: (TaskComment & { user: User })[];
   auditLogs?: (TaskAuditLog & { user: User })[];
+  sharedTeams?: Team[];
 };
 
 export type BoardWithTeam = Board & { team: Team };
