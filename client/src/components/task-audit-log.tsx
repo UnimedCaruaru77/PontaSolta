@@ -135,7 +135,7 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1">
                     <Avatar className="size-8 border-2 border-primary/30">
-                      <AvatarImage src={log.user?.profileImageUrl} />
+                      <AvatarImage src={log.user?.profileImageUrl ?? undefined} />
                       <AvatarFallback className="bg-primary/20 text-primary text-xs">
                         {getInitials(log.user?.firstName, log.user?.lastName)}
                       </AvatarFallback>
@@ -146,7 +146,7 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
                           {log.user?.firstName} {log.user?.lastName}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(log.createdAt), {
+                          {formatDistanceToNow(new Date(log.createdAt || new Date()), {
                             addSuffix: true,
                             locale: ptBR,
                           })}

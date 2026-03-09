@@ -34,6 +34,7 @@ function Router() {
           <Route path="/tasks" component={Home} />
           <Route path="/team" component={Home} />
           <Route path="/users" component={Home} />
+          <Route path="/equipes" component={Home} />
         </>
       )}
       <Route component={NotFound} />

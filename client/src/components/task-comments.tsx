@@ -113,7 +113,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
             >
               <div className="flex gap-3">
                 <Avatar className="size-10 border-2 border-primary/50">
-                  <AvatarImage src={comment.user?.profileImageUrl} />
+                  <AvatarImage src={comment.user?.profileImageUrl ?? undefined} />
                   <AvatarFallback className="bg-primary/20 text-primary">
                     {comment.user?.firstName?.[0]}
                     {comment.user?.lastName?.[0]}
@@ -131,7 +131,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
                       data-testid={`comment-time-${comment.id}`}
                       className="text-xs text-gray-500"
                     >
-                      {formatDistanceToNow(new Date(comment.createdAt), {
+                      {formatDistanceToNow(new Date(comment.createdAt || new Date()), {
                         addSuffix: true,
                         locale: ptBR,
                       })}

@@ -17,11 +17,11 @@ interface TeamMemberStats {
 export default function Team() {
   const { user } = useAuth();
 
-  const { data: tasks, isLoading: tasksLoading } = useQuery({
+  const { data: tasks, isLoading: tasksLoading } = useQuery<TaskWithDetails[]>({
     queryKey: ["/api/tasks"],
   });
 
-  const { data: teamMembers, isLoading: membersLoading } = useQuery({
+  const { data: teamMembers, isLoading: membersLoading } = useQuery<User[]>({
     queryKey: user?.teamId ? ["/api/teams", user.teamId, "members"] : [],
     enabled: !!user?.teamId,
   });

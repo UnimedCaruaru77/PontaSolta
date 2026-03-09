@@ -5,7 +5,8 @@ import {
   Users, 
   UsersRound, 
   ClipboardList,
-  LogOut
+  LogOut,
+  Network
 } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
@@ -20,15 +21,14 @@ const navItems = [
   { path: "/", icon: LayoutDashboard, label: "Dashboard" },
   { path: "/kanban", icon: Kanban, label: "Kanban" },
   { path: "/tasks", icon: ClipboardList, label: "Minhas Tarefas" },
+  { path: "/equipes", icon: Network, label: "Equipes" },
   { path: "/team", icon: UsersRound, label: "Equipe" },
   { path: "/users", icon: Users, label: "Usuários" },
 ];
 
 export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
-  const [, navigate] = useLocation();
-
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    window.location.href = "/api/auth/logout";
   };
 
   const isActive = (path: string) => {
@@ -52,11 +52,11 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
           PONTA SOLTA
         </h1>
         <p className="text-sm text-muted-foreground mt-1" data-testid="sidebar-version">
-          v2.1.0
+          v2.5.0
         </p>
       </div>
       
-      <nav className="space-y-2 flex-1" data-testid="sidebar-nav">
+      <nav className="space-y-1 flex-1" data-testid="sidebar-nav">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -81,13 +81,17 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
         })}
       </nav>
       
-      <div className="pt-8 border-t border-border">
-        <div className="bg-card border border-border rounded p-3 mb-4">
+      <div className="pt-6 border-t border-border">
+        <div className="bg-card border border-border rounded p-3 mb-3">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold text-sm" data-testid="user-initials">
-                {getInitials(user)}
-              </span>
+              {user?.profileImageUrl ? (
+                <img src={user.profileImageUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <span className="text-primary-foreground font-semibold text-sm" data-testid="user-initials">
+                  {getInitials(user)}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate" data-testid="user-name">

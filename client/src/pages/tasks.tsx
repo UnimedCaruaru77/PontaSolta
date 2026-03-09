@@ -16,7 +16,7 @@ export default function Tasks() {
   const [viewMode, setViewMode] = useState<"assigned" | "created" | "all">("assigned");
   const { user } = useAuth();
 
-  const { data: allTasks, isLoading } = useQuery({
+  const { data: allTasks, isLoading } = useQuery<TaskWithDetails[]>({
     queryKey: ["/api/tasks"],
   });
 

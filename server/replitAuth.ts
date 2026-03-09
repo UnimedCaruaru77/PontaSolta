@@ -83,7 +83,7 @@ async function upsertUser(
   } catch (error) {
     // Log error but don't crash server - allow authentication to continue
     // This is acceptable for development/testing when DB might be unavailable
-    console.error('[auth] Failed to upsert user to database:', error.message);
+    console.error('[auth] Failed to upsert user to database:', (error as any).message);
     console.warn('[auth] Continuing with authentication despite DB error');
   }
 }

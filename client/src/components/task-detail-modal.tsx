@@ -22,7 +22,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
   const [comment, setComment] = useState("");
   const { toast } = useToast();
 
-  const { data: task, isLoading } = useQuery({
+  const { data: task, isLoading } = useQuery<TaskWithDetails>({
     queryKey: ["/api/tasks", taskId],
     enabled: !!taskId && open,
   });
@@ -235,17 +235,12 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             data-testid={`subtask-${subtask.id}`}
                           >
                             <Checkbox 
-                              checked={subtask.completed}
+                              checked={subtask.completed ?? false}
                               disabled={updateTaskMutation.isPending}
                             />
                             <span className={`flex-1 ${subtask.completed ? 'line-through text-muted-foreground' : ''}`}>
                               {subtask.title}
                             </span>
-                            {subtask.assignee && (
-                              <span className="text-xs text-muted-foreground">
-                                {getUserName(subtask.assignee.firstName, subtask.assignee.lastName, subtask.assignee.email)}
-                              </span>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -273,7 +268,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                   {getUserName(comment.user?.firstName, comment.user?.lastName, comment.user?.email)}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {formatDateTime(comment.createdAt)}
+                                  {formatDateTime(comment.createdAt || new Date())}
                                 </span>
                               </div>
                               <p className="text-sm text-muted-foreground">{comment.content}</p>

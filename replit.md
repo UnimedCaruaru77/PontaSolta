@@ -1,30 +1,43 @@
 # Overview
 
-PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with features like Kanban boards, team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
+PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with Kanban boards (Teams > Boards > Cards), team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
-## Recent Changes (v2.5.0 - March 2026)
+## Recent Changes (v3.0.0 - March 2026)
 
-### 🔐 Authentication System Update - Google OAuth Only
-1. **Replaced email/password login with Google OAuth exclusively**:
-   - Login é feito apenas via conta Google corporativa
-   - Sem formulário de email/senha — apenas botão "Entrar com Google"
-   - Usuários novos são criados automaticamente no primeiro login pelo Google
-   - Credenciais: `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` nos Replit Secrets
+### Teams > Boards > Cards Hierarchy
+1. **New `boards` table** — Boards belong to a Team. Tasks belong to a Board (optional).
+2. **New `team_members` junction table** — Many-to-many relationship between users and teams. Users can belong to multiple teams.
+3. **`ticketNumber` field on tasks** — Optional field to link tasks to helpdesk tickets (e.g., INC-001).
+4. **`boardId` field on tasks** — Tasks can now be scoped to a specific Kanban board.
 
-2. **Administradores automáticos por email**:
-   - `luciano.filho@unimedcaruaru.com.br` → role: admin
-   - `luciano.filho4@unimedcaruaru.com.br` → role: admin
-   - Ao fazer login com Google, o role é atribuído/atualizado automaticamente
+### New Frontend Pages & Features
+- **Equipes page** (`/equipes`): Full team management (CRUD), member management (add/remove), board management (create/delete boards per team), visible to all users, admin-only destructive actions.
+- **Kanban Board with Board Selector**: Team + Board selector bar at the top of the Kanban view. Filtering by team and/or board updates the task list in real time.
+- **Task Modal (Nova Tarefa)**: Added `N° Chamado` field, Team selector, Board selector (depends on team), and Responsável dropdown now loads actual users.
+- **Task Details Modal**: Fully editable — status, priority, urgency, complexity, assignee (dropdown with all users), quick "Marcar como Concluído" / "Reabrir Tarefa" buttons, shows board and team badges.
+- **Sidebar navigation**: Added "Equipes" nav item with Network icon.
 
-3. **Segurança**:
-   - Session cookies: httpOnly, secure (HTTPS em prod), sameSite: lax
-   - PostgreSQL session store em produção
-   - Fail-fast se GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_SECRET não configurados
+### API Endpoints Added
+- `GET /api/users` — list all users
+- `GET/POST/PATCH/DELETE /api/teams` — full CRUD for teams
+- `POST /api/teams/:id/members` + `DELETE /api/teams/:id/members/:userId` — manage members
+- `GET /api/teams/:id/members` — list members of a team
+- `GET /api/teams/:id/boards` — list boards for a team
+- `GET/POST/PATCH/DELETE /api/boards` — full CRUD for boards
+- `GET /api/tasks?boardId=xxx` — filter tasks by board
+
+## Previous Changes (v2.5.0 - March 2026)
+
+### Authentication System - Google OAuth Only
+- Login exclusively via Google corporate account
+- Admins auto-assigned by email: `luciano.filho@unimedcaruaru.com.br`, `luciano.filho4@unimedcaruaru.com.br`
+- Session cookies: httpOnly, secure, sameSite: lax
+- PostgreSQL session store
 
 ### Callback URL do Google OAuth
 - Desenvolvimento: `https://<replit-dev-domain>/api/auth/google/callback`
 - Produção: `https://<app>.replit.app/api/auth/google/callback`
-- A URL é detectada automaticamente via `REPLIT_DOMAINS` env var
+- URL detectada automaticamente via `REPLIT_DOMAINS` env var
 
 ### Secrets Necessários
 - `GOOGLE_CLIENT_ID` — Client ID do Google Cloud Console
@@ -32,33 +45,9 @@ PONTA SOLTA is a futuristic task management system built with a modern full-stac
 - `SESSION_SECRET` — Chave de sessão (já configurado)
 - `DATABASE_URL` — PostgreSQL (já configurado)
 
-## Previous Changes (v2.3.0 - October 28, 2025)
-
-### ✅ Completed Features
-1. **Task Comments System**: Full CRUD for task comments with user attribution and timestamps
-2. **Audit Log (Task History)**: Automatic tracking of task creation and field changes with visual timeline
-3. **Deadline Notifications**: Dashboard widget showing overdue, today, and upcoming tasks with color-coded sections
-4. **Inline Status Editing**: TaskDetailsModal (Kanban) now allows status changes via Select dropdown
-5. **Real-Time Cache Updates**: All task updates now trigger immediate dashboard and notification refreshes
-
-### 🔧 Technical Improvements
-- Fixed date handling in task creation (ISO string conversion)
-- Improved date classification logic (day-level vs timestamp comparison)
-- **CRITICAL FIX**: Changed `staleTime: Infinity` to `staleTime: 0` in queryClient for real-time updates
-- **Centralized cache invalidation**: All three update paths (Kanban drag-and-drop, TaskDetailsModal, TaskDetailModal) now:
-  - Call `invalidateQueries` for /api/tasks and /api/dashboard/stats
-  - Call `refetchQueries` for both endpoints to force immediate refresh
-- Fixed TaskDetailModal button logic: now shows both "Iniciar Tarefa" and "Marcar como Concluído" buttons when status is 'todo'
-- Database cleanup of legacy epoch dates
-
-### 🎯 Resolved Issues
-- ✅ Cache invalidation now centralized across all task update paths
-- ✅ Task details modals (both Kanban and My Tasks) now support status editing
-- ✅ Dashboard statistics and deadline notifications update in real-time without page reload
-
 # User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language. Portuguese (Brazilian).
 
 # System Architecture
 
@@ -72,61 +61,39 @@ Preferred communication style: Simple, everyday language.
 
 ## Backend Architecture
 - **Runtime**: Node.js with Express.js server framework
-- **API**: RESTful API with CRUD operations for tasks, teams, and users
-- **Authentication**: Replit Auth with OpenID Connect integration
+- **API**: RESTful API with CRUD operations for tasks, teams, boards, and users
+- **Authentication**: Google OAuth via Passport.js + passport-google-oauth20
 - **Session Management**: Express sessions with PostgreSQL store
-- **Middleware**: Custom logging and error handling middleware
 
 ## Database Design
 - **ORM**: Drizzle ORM with PostgreSQL dialect
 - **Database**: PostgreSQL (configured via Neon serverless)
-- **Schema**: 
-  - Users table with team associations and role-based access
-  - Teams table for organization structure
-  - Tasks table with priority, urgency, importance, and complexity fields
-  - Subtasks for breaking down larger tasks
-  - Task comments for collaboration
-  - Sessions table for authentication state
+- **Schema**:
+  - `users` — with Google OAuth fields, role-based access
+  - `teams` — organization units
+  - `team_members` — many-to-many junction (users ↔ teams)
+  - `boards` — kanban boards belonging to a team
+  - `tasks` — with priority, urgency, importance, complexity, ticketNumber, boardId
+  - `subtasks` — breaking down larger tasks
+  - `task_comments` — collaboration on tasks
+  - `task_audit_log` — automatic change history
+  - `sessions` — authentication state
 
 ## Key Features
-- **Task Management**: Create, update, delete tasks with multiple priority dimensions
-- **Kanban Board**: Drag-and-drop interface for task status management
-- **Team Collaboration**: Multi-user support with team-based task assignment
+- **Task Management**: Create, update, delete tasks with ticketNumber field and board assignment
+- **Teams > Boards > Cards**: Full hierarchy with member management
+- **Kanban Board**: Drag-and-drop with team/board filtering
+- **Team Collaboration**: Multi-user support, any user can be in multiple teams
 - **Priority System**: Four-dimensional priority classification (priority, urgency, importance, complexity)
-- **Dashboard**: Real-time statistics and activity tracking
-- **User Management**: Role-based access control (admin, manager, member)
+- **Dashboard**: Real-time statistics and deadline notifications
+- **User Management**: Role-based access (admin, manager, member)
+- **Task History**: Automatic audit log of all changes
+- **Comments**: Per-task commenting system
 
-## Development Tools
-- **Build System**: Vite with React plugin and TypeScript support
-- **Code Quality**: TypeScript for type safety
-- **Database Migrations**: Drizzle Kit for schema management
-- **Development**: Hot module replacement and runtime error overlay
-
-# External Dependencies
-
-## Authentication
-- **Replit Auth**: OAuth 2.0/OpenID Connect integration for user authentication
-- **Passport.js**: Authentication middleware with OpenID strategy
-
-## Database
-- **Neon Database**: Serverless PostgreSQL hosting
-- **Connection Pooling**: @neondatabase/serverless for optimized connections
-
-## UI/UX Libraries
-- **Radix UI**: Accessible component primitives (@radix-ui/react-*)
-- **Lucide React**: Icon library for consistent iconography
-- **Class Variance Authority**: Utility for component variant management
-- **TailwindCSS**: Utility-first CSS framework with PostCSS
-
-## Development Dependencies
-- **Replit Plugins**: Cartographer and dev banner for Replit environment
-- **Runtime Error Modal**: Enhanced error reporting during development
-
-## Session Storage
-- **connect-pg-simple**: PostgreSQL session store for Express sessions
-- **Express Session**: Server-side session management
-
-## Form Handling
-- **React Hook Form**: Performant form library with validation
-- **Zod**: Schema validation for type-safe data handling
-- **@hookform/resolvers**: Integration between React Hook Form and Zod
+## Routes
+- `/` — Dashboard
+- `/kanban` — Kanban Board (supports ?teamId=&boardId= query params)
+- `/tasks` — My Tasks
+- `/equipes` — Teams Management
+- `/team` — Team stats
+- `/users` — User management

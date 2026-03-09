@@ -9,11 +9,12 @@ import {
   integer,
   boolean,
   pgEnum,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table (mandatory for Replit Auth)
+// Session storage table
 export const sessions = pgTable(
   "sessions",
   {
@@ -28,13 +29,13 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique().notNull(),
-  passwordHash: varchar("password_hash"), // For traditional email/password auth
-  googleId: varchar("google_id").unique(), // For Google OAuth
+  passwordHash: varchar("password_hash"),
+  googleId: varchar("google_id").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").default("member"), // member, manager, admin
-  teamId: varchar("team_id"),
+  teamId: varchar("team_id"), // kept for backward compat
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -43,6 +44,22 @@ export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Many-to-many: users <-> teams
+export const teamMembers = pgTable("team_members", {
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => [primaryKey({ columns: [table.teamId, table.userId] })]);
+
+// Boards belong to a team
+export const boards = pgTable("boards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -56,6 +73,7 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: varchar("title").notNull(),
   description: text("description"),
+  ticketNumber: varchar("ticket_number"),
   priority: priorityEnum("priority").notNull().default("medium"),
   urgency: urgencyEnum("urgency").notNull().default("medium"),
   importance: importanceEnum("importance").notNull().default("medium"),
@@ -64,6 +82,7 @@ export const tasks = pgTable("tasks", {
   assigneeId: varchar("assignee_id").references(() => users.id),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   teamId: varchar("team_id").references(() => teams.id),
+  boardId: varchar("board_id").references(() => boards.id),
   startDate: timestamp("start_date"),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
@@ -92,19 +111,16 @@ export const taskAuditLog = pgTable("task_audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id),
-  action: varchar("action").notNull(), // created, updated, status_changed, assigned, etc.
-  field: varchar("field"), // field that changed (status, assignee, priority, etc.)
-  oldValue: text("old_value"), // JSON string of old value
-  newValue: text("new_value"), // JSON string of new value
+  action: varchar("action").notNull(),
+  field: varchar("field"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Relations
-export const usersRelations = relations(users, ({ one, many }) => ({
-  team: one(teams, {
-    fields: [users.teamId],
-    references: [teams.id],
-  }),
+export const usersRelations = relations(users, ({ many }) => ({
+  teamMemberships: many(teamMembers),
   assignedTasks: many(tasks, { relationName: "assignedTasks" }),
   createdTasks: many(tasks, { relationName: "createdTasks" }),
   subtasks: many(subtasks),
@@ -112,7 +128,18 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 }));
 
 export const teamsRelations = relations(teams, ({ many }) => ({
-  members: many(users),
+  members: many(teamMembers),
+  boards: many(boards),
+  tasks: many(tasks),
+}));
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  team: one(teams, { fields: [teamMembers.teamId], references: [teams.id] }),
+  user: one(users, { fields: [teamMembers.userId], references: [users.id] }),
+}));
+
+export const boardsRelations = relations(boards, ({ one, many }) => ({
+  team: one(teams, { fields: [boards.teamId], references: [teams.id] }),
   tasks: many(tasks),
 }));
 
@@ -127,62 +154,44 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     references: [users.id],
     relationName: "createdTasks",
   }),
-  team: one(teams, {
-    fields: [tasks.teamId],
-    references: [teams.id],
-  }),
+  team: one(teams, { fields: [tasks.teamId], references: [teams.id] }),
+  board: one(boards, { fields: [tasks.boardId], references: [boards.id] }),
   subtasks: many(subtasks),
   comments: many(taskComments),
   auditLogs: many(taskAuditLog),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
-  task: one(tasks, {
-    fields: [subtasks.taskId],
-    references: [tasks.id],
-  }),
-  assignee: one(users, {
-    fields: [subtasks.assigneeId],
-    references: [users.id],
-  }),
+  task: one(tasks, { fields: [subtasks.taskId], references: [tasks.id] }),
+  assignee: one(users, { fields: [subtasks.assigneeId], references: [users.id] }),
 }));
 
 export const taskCommentsRelations = relations(taskComments, ({ one }) => ({
-  task: one(tasks, {
-    fields: [taskComments.taskId],
-    references: [tasks.id],
-  }),
-  user: one(users, {
-    fields: [taskComments.userId],
-    references: [users.id],
-  }),
+  task: one(tasks, { fields: [taskComments.taskId], references: [tasks.id] }),
+  user: one(users, { fields: [taskComments.userId], references: [users.id] }),
 }));
 
 export const taskAuditLogRelations = relations(taskAuditLog, ({ one }) => ({
-  task: one(tasks, {
-    fields: [taskAuditLog.taskId],
-    references: [tasks.id],
-  }),
-  user: one(users, {
-    fields: [taskAuditLog.userId],
-    references: [users.id],
-  }),
+  task: one(tasks, { fields: [taskAuditLog.taskId], references: [tasks.id] }),
+  user: one(users, { fields: [taskAuditLog.userId], references: [users.id] }),
 }));
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = typeof teams.$inferInsert;
+export const insertTeamSchema = createInsertSchema(teams).omit({ id: true, createdAt: true });
+
+export type Board = typeof boards.$inferSelect;
+export type InsertBoard = typeof boards.$inferInsert;
+export const insertBoardSchema = createInsertSchema(boards).omit({ id: true, createdAt: true });
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
 export const insertTaskSchema = createInsertSchema(tasks)
-  .omit({
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-  })
+  .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({
     startDate: z.coerce.date().optional(),
     dueDate: z.coerce.date().optional(),
@@ -191,31 +200,26 @@ export const insertTaskSchema = createInsertSchema(tasks)
 
 export type Subtask = typeof subtasks.$inferSelect;
 export type InsertSubtask = typeof subtasks.$inferInsert;
-export const insertSubtaskSchema = createInsertSchema(subtasks).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertSubtaskSchema = createInsertSchema(subtasks).omit({ id: true, createdAt: true });
 
 export type TaskComment = typeof taskComments.$inferSelect;
 export type InsertTaskComment = typeof taskComments.$inferInsert;
-export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertTaskCommentSchema = createInsertSchema(taskComments).omit({ id: true, createdAt: true });
 
 export type TaskAuditLog = typeof taskAuditLog.$inferSelect;
 export type InsertTaskAuditLog = typeof taskAuditLog.$inferInsert;
-export const insertTaskAuditLogSchema = createInsertSchema(taskAuditLog).omit({
-  id: true,
-  createdAt: true,
-});
+export const insertTaskAuditLogSchema = createInsertSchema(taskAuditLog).omit({ id: true, createdAt: true });
 
-// Extended types with relations
+// Extended types
 export type TaskWithDetails = Task & {
   assignee?: User | null;
   creator: User;
   team?: Team | null;
+  board?: Board | null;
   subtasks: Subtask[];
   comments: (TaskComment & { user: User })[];
   auditLogs?: (TaskAuditLog & { user: User })[];
 };
+
+export type BoardWithTeam = Board & { team: Team };
+export type TeamWithMembers = Team & { members: User[]; boards: Board[] };

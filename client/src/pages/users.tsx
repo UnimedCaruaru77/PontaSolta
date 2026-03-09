@@ -11,12 +11,12 @@ import type { User } from "@shared/schema";
 export default function Users() {
   const { user: currentUser } = useAuth();
 
-  const { data: teams, isLoading: teamsLoading } = useQuery({
+  const { data: teams, isLoading: teamsLoading } = useQuery<any[]>({
     queryKey: ["/api/teams"],
   });
 
   // For now, we'll show team members if user has a team, or just current user
-  const { data: teamMembers, isLoading: membersLoading } = useQuery({
+  const { data: teamMembers, isLoading: membersLoading } = useQuery<User[]>({
     queryKey: currentUser?.teamId ? ["/api/teams", currentUser.teamId, "members"] : [],
     enabled: !!currentUser?.teamId,
   });
