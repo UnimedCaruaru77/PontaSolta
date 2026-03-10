@@ -2,6 +2,29 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with Kanban boards (Teams > Boards > Cards), team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
+## Recent Changes (v3.3.0 - March 2026)
+
+### Novas Features
+- **Busca Global**: Botão "Buscar tarefa..." na sidebar abre dialog com busca em tempo real. Pesquisa por título, número de chamado ou responsável. Resultados mostram status, equipe, prazo. Clicar no resultado abre o modal de detalhes.
+- **Filtros Avançados no Kanban**: Dois novos dropdowns na barra de filtros — Prioridade (Alta/Média/Baixa) e Responsável (lista de usuários). Filtros aplicados no frontend sobre os cards já carregados.
+- **Foto de Perfil no Card**: O card do Kanban agora exibe a foto de perfil do responsável (Google OAuth), com fallback para iniciais.
+- **Etiquetas Coloridas (Tags)**: Cards podem ter etiquetas coloridas. Admin/gestor cria etiquetas com nome + cor customizada. Qualquer usuário adiciona/remove etiquetas nos cards. Badges coloridos aparecem nos cards do Kanban e no modal de detalhes.
+- **Indicador de SLA**: Cards com número de chamado + prazo exibem barra de progresso colorida (verde/amarelo/vermelho) indicando % do tempo restante. Painel completo no modal de detalhes na seção Prazos.
+
+### Schema
+- Nova tabela `tags` (id, name, color, createdAt) — etiquetas globais reutilizáveis
+- Nova tabela `task_tags` (taskId, tagId) — many-to-many tasks ↔ tags
+- `TaskWithDetails` agora inclui campo `tags?: Tag[]`
+
+### Novos Endpoints
+- `GET /api/tags` — lista todas as etiquetas
+- `POST /api/tags` — cria etiqueta (admin/gestor)
+- `POST /api/tasks/:id/tags` — adiciona etiqueta a tarefa
+- `DELETE /api/tasks/:id/tags/:tagId` — remove etiqueta de tarefa
+
+### Performance
+- `hydrateTaskDetails` refatorado para batch queries (elimina N+1 para subtasks, comentários, shares e tags)
+
 ## Recent Changes (v3.2.0 - March 2026)
 
 ### Controle de Visibilidade por Papel

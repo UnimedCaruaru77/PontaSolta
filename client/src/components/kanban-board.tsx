@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Layout, Users } from "lucide-react";
-import type { TaskWithDetails, TeamWithMembers, Board } from "@shared/schema";
+import { Layout, Users, AlertTriangle, User } from "lucide-react";
+import type { TaskWithDetails, TeamWithMembers, Board, User as UserType } from "@shared/schema";
 
 export default function KanbanBoard() {
   const [location] = useLocation();
@@ -19,11 +19,17 @@ export default function KanbanBoard() {
 
   const [selectedTeamId, setSelectedTeamId] = useState(urlTeamId);
   const [selectedBoardId, setSelectedBoardId] = useState(urlBoardId);
+  const [selectedPriority, setSelectedPriority] = useState('');
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: teams = [] } = useQuery<TeamWithMembers[]>({
     queryKey: ["/api/teams"],
+  });
+
+  const { data: allUsers = [] } = useQuery<UserType[]>({
+    queryKey: ["/api/users"],
   });
 
   const { data: boards = [] } = useQuery<Board[]>({
@@ -78,8 +84,19 @@ export default function KanbanBoard() {
     { id: "done", title: "Concluído", status: "done", color: "bg-secondary/20 text-secondary", border: "border-l-secondary" },
   ];
 
+  const applyFilters = (list: TaskWithDetails[]) => {
+    let filtered = list;
+    if (selectedPriority) filtered = filtered.filter(t => t.priority === selectedPriority);
+    if (selectedAssigneeId === '__unassigned') {
+      filtered = filtered.filter(t => !t.assigneeId);
+    } else if (selectedAssigneeId) {
+      filtered = filtered.filter(t => t.assigneeId === selectedAssigneeId);
+    }
+    return filtered;
+  };
+
   const getTasksByStatus = (status: string) =>
-    (tasks as TaskWithDetails[])?.filter(t => t.status === status) || [];
+    applyFilters((tasks as TaskWithDetails[])?.filter(t => t.status === status) || []);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData("text/plain", taskId);
@@ -108,10 +125,12 @@ export default function KanbanBoard() {
     (e.currentTarget as HTMLElement).classList.remove('ring-2', 'ring-primary/50');
   };
 
+  const activeFiltersCount = [selectedPriority, selectedAssigneeId].filter(Boolean).length;
+
   return (
     <>
       {/* Board Selector Bar */}
-      <div className="flex items-center gap-4 mb-6 p-4 bg-card border border-border rounded-lg">
+      <div className="flex flex-wrap items-center gap-3 mb-6 p-4 bg-card border border-border rounded-lg">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Users className="size-4" />
           <span className="text-sm font-medium">Equipe:</span>
@@ -123,7 +142,7 @@ export default function KanbanBoard() {
             setSelectedBoardId("");
           }}
         >
-          <SelectTrigger className="w-52 bg-input border-border h-9">
+          <SelectTrigger className="w-44 bg-input border-border h-9">
             <SelectValue placeholder="Todas as equipes" />
           </SelectTrigger>
           <SelectContent>
@@ -144,7 +163,7 @@ export default function KanbanBoard() {
               value={selectedBoardId || "_all"}
               onValueChange={(v) => setSelectedBoardId(v === "_all" ? "" : v)}
             >
-              <SelectTrigger className="w-52 bg-input border-border h-9">
+              <SelectTrigger className="w-44 bg-input border-border h-9">
                 <SelectValue placeholder="Todos os quadros" />
               </SelectTrigger>
               <SelectContent>
@@ -157,9 +176,50 @@ export default function KanbanBoard() {
           </>
         )}
 
-        {selectedBoardId && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <AlertTriangle className="size-4" />
+          <span className="text-sm font-medium">Prioridade:</span>
+        </div>
+        <Select
+          value={selectedPriority || "_all"}
+          onValueChange={(v) => setSelectedPriority(v === "_all" ? "" : v)}
+        >
+          <SelectTrigger className="w-40 bg-input border-border h-9">
+            <SelectValue placeholder="Todas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Todas</SelectItem>
+            <SelectItem value="high">Alta</SelectItem>
+            <SelectItem value="medium">Média</SelectItem>
+            <SelectItem value="low">Baixa</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <User className="size-4" />
+          <span className="text-sm font-medium">Responsável:</span>
+        </div>
+        <Select
+          value={selectedAssigneeId || "_all"}
+          onValueChange={(v) => setSelectedAssigneeId(v === "_all" ? "" : v)}
+        >
+          <SelectTrigger className="w-44 bg-input border-border h-9">
+            <SelectValue placeholder="Todos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">Todos</SelectItem>
+            <SelectItem value="__unassigned">Sem responsável</SelectItem>
+            {(allUsers as UserType[]).map(u => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {activeFiltersCount > 0 && (
           <Badge className="bg-primary/20 text-primary border-primary/30 ml-auto">
-            {(boards as Board[]).find(b => b.id === selectedBoardId)?.name}
+            {activeFiltersCount} filtro{activeFiltersCount > 1 ? 's' : ''} ativo{activeFiltersCount > 1 ? 's' : ''}
           </Badge>
         )}
       </div>

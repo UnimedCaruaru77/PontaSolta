@@ -8,6 +8,8 @@ import {
   subtasks,
   taskComments,
   taskAuditLog,
+  tags,
+  taskTags,
   type User,
   type UpsertUser,
   type Task,
@@ -24,6 +26,8 @@ import {
   type TaskAuditLog,
   type InsertTaskAuditLog,
   type TeamWithMembers,
+  type Tag,
+  type InsertTag,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
@@ -91,6 +95,13 @@ export interface IStorage {
   getTaskShares(taskId: string): Promise<Team[]>;
   addTaskShare(taskId: string, teamId: string): Promise<void>;
   removeTaskShare(taskId: string, teamId: string): Promise<void>;
+
+  // Tag operations
+  getTags(): Promise<Tag[]>;
+  createTag(tag: InsertTag): Promise<Tag>;
+  getTaskTags(taskId: string): Promise<Tag[]>;
+  addTaskTag(taskId: string, tagId: string): Promise<void>;
+  removeTaskTag(taskId: string, tagId: string): Promise<void>;
 
   // Dashboard stats
   getDashboardStats(userId: string): Promise<{
@@ -340,33 +351,72 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async hydrateTaskDetails(results: any[]): Promise<TaskWithDetails[]> {
-    const tasksWithDetails: TaskWithDetails[] = [];
-    for (const result of results) {
-      const taskSubtasks = await db
-        .select()
-        .from(subtasks)
-        .where(eq(subtasks.taskId, result.task.id));
+    if (results.length === 0) return [];
 
-      const commentsData = await db
-        .select({ comment: taskComments, user: users })
-        .from(taskComments)
-        .leftJoin(users, eq(taskComments.userId, users.id))
-        .where(eq(taskComments.taskId, result.task.id))
-        .orderBy(desc(taskComments.createdAt));
+    const taskIds = results.map(r => r.task.id);
 
-      const sharedTeams = await this.getTaskShares(result.task.id);
-
-      tasksWithDetails.push({
-        ...result.task,
-        assignee: result.assignee,
-        creator: result.creator,
-        team: result.team,
-        board: result.board,
-        subtasks: taskSubtasks,
-        comments: commentsData.map((c: any) => ({ ...c.comment, user: c.user })),
-        sharedTeams,
-      });
+    // Batch: subtasks
+    const allSubtasks = await db.select().from(subtasks).where(inArray(subtasks.taskId, taskIds));
+    const subtasksByTask = new Map<string, any[]>();
+    for (const s of allSubtasks) {
+      if (!subtasksByTask.has(s.taskId)) subtasksByTask.set(s.taskId, []);
+      subtasksByTask.get(s.taskId)!.push(s);
     }
+
+    // Batch: comments
+    const allComments = await db
+      .select({ comment: taskComments, user: users })
+      .from(taskComments)
+      .leftJoin(users, eq(taskComments.userId, users.id))
+      .where(inArray(taskComments.taskId, taskIds))
+      .orderBy(desc(taskComments.createdAt));
+    const commentsByTask = new Map<string, any[]>();
+    for (const c of allComments) {
+      if (!commentsByTask.has(c.comment.taskId)) commentsByTask.set(c.comment.taskId, []);
+      commentsByTask.get(c.comment.taskId)!.push({ ...c.comment, user: c.user });
+    }
+
+    // Batch: shared teams
+    const sharesByTask = new Map<string, Team[]>();
+    try {
+      const allShares = await db
+        .select({ taskId: taskShares.taskId, team: teams })
+        .from(taskShares)
+        .leftJoin(teams, eq(taskShares.teamId, teams.id))
+        .where(inArray(taskShares.taskId, taskIds));
+      for (const s of allShares) {
+        if (s.team) {
+          if (!sharesByTask.has(s.taskId)) sharesByTask.set(s.taskId, []);
+          sharesByTask.get(s.taskId)!.push(s.team);
+        }
+      }
+    } catch (_) {}
+
+    // Batch: tags
+    const tagsByTask = new Map<string, Tag[]>();
+    try {
+      const allTagRows = await db
+        .select({ taskId: taskTags.taskId, tag: tags })
+        .from(taskTags)
+        .innerJoin(tags, eq(taskTags.tagId, tags.id))
+        .where(inArray(taskTags.taskId, taskIds));
+      for (const r of allTagRows) {
+        if (!tagsByTask.has(r.taskId)) tagsByTask.set(r.taskId, []);
+        tagsByTask.get(r.taskId)!.push(r.tag);
+      }
+    } catch (_) {}
+
+    const tasksWithDetails: TaskWithDetails[] = results.map(result => ({
+      ...result.task,
+      assignee: result.assignee,
+      creator: result.creator,
+      team: result.team,
+      board: result.board,
+      subtasks: subtasksByTask.get(result.task.id) || [],
+      comments: commentsByTask.get(result.task.id) || [],
+      sharedTeams: sharesByTask.get(result.task.id) || [],
+      tags: tagsByTask.get(result.task.id) || [],
+    }));
     return tasksWithDetails;
   }
 
@@ -402,6 +452,16 @@ export class DatabaseStorage implements IStorage {
 
     const sharedTeams = await this.getTaskShares(id);
 
+    let taskTagList: Tag[] = [];
+    try {
+      const tagRows = await db
+        .select({ tag: tags })
+        .from(taskTags)
+        .innerJoin(tags, eq(taskTags.tagId, tags.id))
+        .where(eq(taskTags.taskId, id));
+      taskTagList = tagRows.map(r => r.tag);
+    } catch (_) {}
+
     return {
       ...result.task,
       assignee: result.assignee,
@@ -411,6 +471,7 @@ export class DatabaseStorage implements IStorage {
       subtasks: taskSubtasks,
       comments: commentsData.map((c: any) => ({ ...c.comment, user: c.user })),
       sharedTeams,
+      tags: taskTagList,
     };
   }
 
@@ -503,6 +564,35 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(taskShares)
       .where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
+  }
+
+  // ── Tags ────────────────────────────────────────────────────
+  async getTags(): Promise<Tag[]> {
+    return await db.select().from(tags).orderBy(tags.name);
+  }
+
+  async createTag(tag: InsertTag): Promise<Tag> {
+    const [newTag] = await db.insert(tags).values(tag).returning();
+    return newTag;
+  }
+
+  async getTaskTags(taskId: string): Promise<Tag[]> {
+    const rows = await db
+      .select({ tag: tags })
+      .from(taskTags)
+      .innerJoin(tags, eq(taskTags.tagId, tags.id))
+      .where(eq(taskTags.taskId, taskId));
+    return rows.map(r => r.tag);
+  }
+
+  async addTaskTag(taskId: string, tagId: string): Promise<void> {
+    await db.insert(taskTags).values({ taskId, tagId }).onConflictDoNothing();
+  }
+
+  async removeTaskTag(taskId: string, tagId: string): Promise<void> {
+    await db
+      .delete(taskTags)
+      .where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));
   }
 
   // ── Dashboard stats ────────────────────────────────────────

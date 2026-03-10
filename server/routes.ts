@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./localAuth";
-import { insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema, insertTeamSchema, insertBoardSchema, insertUserSchema } from "@shared/schema";
+import { insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema, insertTeamSchema, insertBoardSchema, insertUserSchema, insertTagSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -345,6 +345,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete task" });
+    }
+  });
+
+  // ── Tags ─────────────────────────────────────────────────────
+  app.get('/api/tags', isAuthenticated, async (req: any, res) => {
+    try {
+      const allTags = await storage.getTags();
+      res.json(allTags);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  app.post('/api/tags', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+        return res.status(403).json({ message: "Sem permissão para criar etiquetas" });
+      }
+      const tagData = insertTagSchema.parse(req.body);
+      const newTag = await storage.createTag(tagData);
+      res.status(201).json(newTag);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Failed to create tag" });
+    }
+  });
+
+  app.post('/api/tasks/:id/tags', isAuthenticated, async (req: any, res) => {
+    try {
+      const { tagId } = req.body;
+      if (!tagId) return res.status(400).json({ message: "tagId é obrigatório" });
+      await storage.addTaskTag(req.params.id, tagId);
+      res.status(201).json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to add tag to task" });
+    }
+  });
+
+  app.delete('/api/tasks/:id/tags/:tagId', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.removeTaskTag(req.params.id, req.params.tagId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove tag from task" });
     }
   });
 

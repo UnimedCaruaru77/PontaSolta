@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TaskComments } from "./task-comments";
 import { TaskAuditLog } from "./task-audit-log";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,11 +16,11 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Calendar, User, Clock, AlertTriangle, CheckSquare,
   MessageSquare, FileText, History, Hash, CheckCircle2, XCircle,
-  Users, Share2, X, Plus, ArrowRightLeft
+  Users, Share2, X, Plus, ArrowRightLeft, Tag, Gauge
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { TaskWithDetails, User as UserType, Team } from "@shared/schema";
+import type { TaskWithDetails, User as UserType, Team, Tag as TagType } from "@shared/schema";
 
 interface TaskDetailsModalProps {
   taskId: string | null;
@@ -51,6 +52,15 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     queryKey: ["/api/teams"],
     enabled: open,
   });
+
+  const { data: allTags = [] } = useQuery<TagType[]>({
+    queryKey: ["/api/tags"],
+    enabled: open,
+  });
+
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#22c55e");
+  const [showNewTag, setShowNewTag] = useState(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -91,6 +101,60 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     },
     onError: () => toast({ title: "Erro ao remover compartilhamento", variant: "destructive" }),
   });
+
+  const addTagMutation = useMutation({
+    mutationFn: async (tagId: string) => {
+      await apiRequest("POST", `/api/tasks/${taskId}/tags`, { tagId });
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Etiqueta adicionada!" });
+    },
+    onError: () => toast({ title: "Erro ao adicionar etiqueta", variant: "destructive" }),
+  });
+
+  const removeTagMutation = useMutation({
+    mutationFn: async (tagId: string) => {
+      await apiRequest("DELETE", `/api/tasks/${taskId}/tags/${tagId}`);
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Etiqueta removida." });
+    },
+    onError: () => toast({ title: "Erro ao remover etiqueta", variant: "destructive" }),
+  });
+
+  const createTagMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/tags", { name: newTagName.trim(), color: newTagColor });
+      const created = await res.json();
+      await apiRequest("POST", `/api/tasks/${taskId}/tags`, { tagId: created.id });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tags"] });
+      invalidate();
+      setNewTagName("");
+      setNewTagColor("#22c55e");
+      setShowNewTag(false);
+      toast({ title: "Etiqueta criada e adicionada!" });
+    },
+    onError: () => toast({ title: "Erro ao criar etiqueta", variant: "destructive" }),
+  });
+
+  const getSlaInfo = () => {
+    if (!task?.ticketNumber || !task?.dueDate) return null;
+    const start = task.startDate ? new Date(task.startDate) : new Date(task.createdAt!);
+    const end = new Date(task.dueDate);
+    const now = new Date();
+    const total = end.getTime() - start.getTime();
+    if (total <= 0) return null;
+    const elapsed = now.getTime() - start.getTime();
+    const remainingPct = Math.max(0, Math.min(100, (1 - elapsed / total) * 100));
+    if (now > end) return { pct: 0, barColor: 'bg-red-500', textColor: 'text-red-400', label: 'SLA vencido', status: 'Crítico' };
+    if (remainingPct > 50) return { pct: remainingPct, barColor: 'bg-green-500', textColor: 'text-green-400', label: `${Math.round(remainingPct)}% restante`, status: 'Normal' };
+    if (remainingPct > 25) return { pct: remainingPct, barColor: 'bg-yellow-500', textColor: 'text-yellow-400', label: `${Math.round(remainingPct)}% restante`, status: 'Atenção' };
+    return { pct: remainingPct, barColor: 'bg-red-500', textColor: 'text-red-400', label: `${Math.round(remainingPct)}% restante`, status: 'Crítico' };
+  };
 
   if (!task && !isLoading) return null;
 
@@ -366,6 +430,29 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                       <span className="text-green-400 text-xs">{new Date(task.completedAt).toLocaleDateString('pt-BR')}</span>
                     </div>
                   )}
+
+                  {/* SLA Indicator */}
+                  {(() => {
+                    const sla = getSlaInfo();
+                    if (!sla) return null;
+                    return (
+                      <div className="pt-2 border-t border-primary/10">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-xs text-gray-400 flex items-center gap-1">
+                            <Gauge className="size-3" /> SLA — {task.ticketNumber}
+                          </p>
+                          <span className={`text-xs font-semibold ${sla.textColor}`}>{sla.status}</span>
+                        </div>
+                        <div className="w-full h-2.5 bg-black/50 rounded-full overflow-hidden border border-white/10">
+                          <div
+                            className={`h-full rounded-full transition-all ${sla.barColor}`}
+                            style={{ width: `${sla.pct}%` }}
+                          />
+                        </div>
+                        <p className={`text-xs mt-1 ${sla.textColor}`}>{sla.label}</p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -460,6 +547,117 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                     </Select>
                   )}
                 </div>
+              </div>
+
+              {/* Tags / Etiquetas */}
+              <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                  <Tag className="size-4" /> Etiquetas
+                </h4>
+
+                {/* Current tags */}
+                <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
+                  {(task.tags || []).length === 0 ? (
+                    <span className="text-xs text-gray-500">Nenhuma etiqueta</span>
+                  ) : (
+                    (task.tags || []).map(tag => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: tag.color + '33', color: tag.color, border: `1px solid ${tag.color}55` }}
+                      >
+                        {tag.name}
+                        <button
+                          onClick={() => removeTagMutation.mutate(tag.id)}
+                          disabled={removeTagMutation.isPending}
+                          className="ml-0.5 hover:opacity-70 transition-opacity"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Add existing tag */}
+                {(() => {
+                  const currentTagIds = new Set((task.tags || []).map(t => t.id));
+                  const available = (allTags as TagType[]).filter(t => !currentTagIds.has(t.id));
+                  if (available.length === 0 && !currentUser) return null;
+                  return (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {available.length > 0 && (
+                        <Select
+                          value=""
+                          onValueChange={v => { if (v) addTagMutation.mutate(v); }}
+                          disabled={addTagMutation.isPending}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30 w-48">
+                            <Plus className="size-3 mr-1" />
+                            <SelectValue placeholder="Adicionar etiqueta..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-black border-primary/50">
+                            {available.map(t => (
+                              <SelectItem key={t.id} value={t.id}>
+                                <span className="flex items-center gap-2">
+                                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: t.color }} />
+                                  {t.name}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'manager') && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 text-xs text-muted-foreground hover:text-primary"
+                          onClick={() => setShowNewTag(v => !v)}
+                        >
+                          <Plus className="size-3 mr-1" />
+                          Nova etiqueta
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Create new tag form */}
+                {showNewTag && (
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <Input
+                      placeholder="Nome da etiqueta"
+                      value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      className="h-8 text-xs bg-black/40 border-primary/30 text-white w-40"
+                    />
+                    <input
+                      type="color"
+                      value={newTagColor}
+                      onChange={e => setNewTagColor(e.target.value)}
+                      className="w-8 h-8 rounded border border-primary/30 cursor-pointer bg-transparent"
+                      title="Cor da etiqueta"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs"
+                      disabled={!newTagName.trim() || createTagMutation.isPending}
+                      onClick={() => createTagMutation.mutate()}
+                    >
+                      Criar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 text-xs text-muted-foreground"
+                      onClick={() => setShowNewTag(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Subtasks */}

@@ -44,4 +44,19 @@ async function ensureCriticalTables() {
       PRIMARY KEY (task_id, team_id)
     )
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS tags (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR NOT NULL,
+      color VARCHAR NOT NULL DEFAULT '#22c55e',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS task_tags (
+      task_id VARCHAR NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      tag_id VARCHAR NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, tag_id)
+    )
+  `);
 }
