@@ -48,8 +48,8 @@ function EventDialog({
   const mutation = useMutation({
     mutationFn: () => {
       const body = { title, description, location, startAt: new Date(startAt), endAt: endAt ? new Date(endAt) : null };
-      if (event) return apiRequest(`/api/events/${event.id}`, "PATCH", body);
-      return apiRequest(`/api/teams/${teamId}/events`, "POST", body);
+      if (event) return apiRequest("PATCH", `/api/events/${event.id}`, body);
+      return apiRequest("POST", `/api/teams/${teamId}/events`, body);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/teams", teamId, "events"] });
@@ -135,7 +135,7 @@ export default function CalendarPage() {
     (selectedTeam?.members.some(m => m.id === user?.id && (m as any).isLead) ?? false);
 
   const deleteEventMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/events/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/events/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/teams", selectedTeamId, "events"] });
       toast({ title: "Evento removido" });

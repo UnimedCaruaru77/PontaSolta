@@ -65,7 +65,7 @@ export default function PerformancePage() {
 
   const saveEvalMutation = useMutation({
     mutationFn: async (skillId: string) => {
-      return apiRequest(`/api/teams/${selectedTeamId}/evaluations`, "POST", {
+      return apiRequest("POST", `/api/teams/${selectedTeamId}/evaluations`, {
         userId: selectedUserId,
         skillId,
         score: effectiveScores[skillId] ?? 3,
@@ -81,7 +81,7 @@ export default function PerformancePage() {
     mutationFn: async () => {
       const toSave = Object.entries(effectiveScores);
       for (const [skillId, score] of toSave) {
-        await apiRequest(`/api/teams/${selectedTeamId}/evaluations`, "POST", {
+        await apiRequest("POST", `/api/teams/${selectedTeamId}/evaluations`, {
           userId: selectedUserId, skillId, score,
         });
       }
@@ -94,7 +94,7 @@ export default function PerformancePage() {
   });
 
   const createSkillMutation = useMutation({
-    mutationFn: () => apiRequest("/api/skills", "POST", { name: newSkillName, type: newSkillType }),
+    mutationFn: () => apiRequest("POST", "/api/skills", { name: newSkillName, type: newSkillType }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/skills"] });
       setNewSkillName(""); setSkillDialogOpen(false);
@@ -104,7 +104,7 @@ export default function PerformancePage() {
   });
 
   const deleteSkillMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/skills/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/skills/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/skills"] });
       toast({ title: "Competência removida" });

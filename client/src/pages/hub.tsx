@@ -71,7 +71,7 @@ function AnnouncementSection({ teamId, canPost }: { teamId: string; canPost: boo
   const postMutation = useMutation({
     mutationFn: async () => {
       for (const m of members) {
-        await apiRequest("/api/notifications", "POST", {
+        await apiRequest("POST", "/api/notifications", {
           userId: m.id,
           title: msgTitle,
           message: msgBody,
@@ -146,13 +146,13 @@ function OnboardingSection({ teamId, canManage }: { teamId: string; canManage: b
   });
 
   const toggleMutation = useMutation({
-    mutationFn: (itemId: string) => apiRequest(`/api/teams/${teamId}/onboarding/${itemId}/toggle`, "POST", {}),
+    mutationFn: (itemId: string) => apiRequest("POST", `/api/teams/${teamId}/onboarding/${itemId}/toggle`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/teams", teamId, "onboarding"] }),
     onError: () => toast({ title: "Erro ao atualizar progresso", variant: "destructive" }),
   });
 
   const addMutation = useMutation({
-    mutationFn: () => apiRequest(`/api/teams/${teamId}/onboarding`, "POST", { title: itemTitle, description: itemDesc, order: items.length }),
+    mutationFn: () => apiRequest("POST", `/api/teams/${teamId}/onboarding`, { title: itemTitle, description: itemDesc, order: items.length }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/teams", teamId, "onboarding"] });
       toast({ title: "Item adicionado" });
@@ -164,7 +164,7 @@ function OnboardingSection({ teamId, canManage }: { teamId: string; canManage: b
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (itemId: string) => apiRequest(`/api/teams/${teamId}/onboarding/${itemId}`, "DELETE"),
+    mutationFn: (itemId: string) => apiRequest("DELETE", `/api/teams/${teamId}/onboarding/${itemId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/teams", teamId, "onboarding"] }),
     onError: () => toast({ title: "Erro ao remover item", variant: "destructive" }),
   });

@@ -58,12 +58,12 @@ function NotificationBell({ user }: { user?: User | null }) {
   const unread = notifications.filter(n => !n.read).length;
 
   const markAllMutation = useMutation({
-    mutationFn: () => apiRequest("/api/notifications/read-all", "PATCH", {}),
+    mutationFn: () => apiRequest("PATCH", "/api/notifications/read-all", {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/notifications"] }),
   });
 
   const markOneMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/notifications/${id}/read`, "PATCH", {}),
+    mutationFn: (id: string) => apiRequest("PATCH", `/api/notifications/${id}/read`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/notifications"] }),
   });
 
