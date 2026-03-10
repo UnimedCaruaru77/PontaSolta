@@ -13,9 +13,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  Users, Plus, Trash2, Settings, Layout, UserPlus, ChevronDown, ChevronRight
+  Users, Plus, Trash2, Settings, Layout, UserPlus, ChevronDown, ChevronRight, LayoutTemplate, Crown
 } from "lucide-react";
-import type { TeamWithMembers, User, Board } from "@shared/schema";
+import type { TeamWithMembers, User, Board, TaskTemplate } from "@shared/schema";
 
 function getInitials(user: User) {
   const f = user.firstName?.charAt(0) || '';
@@ -55,6 +55,16 @@ function TeamCard({ team, allUsers }: { team: TeamWithMembers; allUsers: User[] 
       toast({ title: "Membro removido" });
     },
     onError: () => toast({ title: "Erro ao remover membro", variant: "destructive" }),
+  });
+
+  const toggleLeadMutation = useMutation({
+    mutationFn: ({ userId, isLead }: { userId: string; isLead: boolean }) =>
+      apiRequest("PATCH", `/api/teams/${team.id}/members/${userId}/lead`, { isLead }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+      toast({ title: "Papel de líder atualizado!" });
+    },
+    onError: () => toast({ title: "Erro ao atualizar líder", variant: "destructive" }),
   });
 
   const deleteTeamMutation = useMutation({
@@ -170,36 +180,53 @@ function TeamCard({ team, allUsers }: { team: TeamWithMembers; allUsers: User[] 
               <p className="text-sm text-muted-foreground italic">Nenhum membro nesta equipe.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {team.members.map(member => (
-                  <div key={member.id} className="flex items-center gap-2 bg-muted/30 rounded-full pl-1 pr-3 py-1">
-                    <Avatar className="size-7">
-                      <AvatarImage src={member.profileImageUrl || undefined} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                        {getInitials(member)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">
-                      {member.firstName && member.lastName
-                        ? `${member.firstName} ${member.lastName}`
-                        : member.email}
-                    </span>
-                    <Badge className={
-                      member.role === 'admin' ? 'bg-red-500/20 text-red-400 border-red-500/30 text-xs' :
-                      member.role === 'manager' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs' :
-                      'bg-muted text-muted-foreground text-xs'
-                    }>
-                      {member.role === 'admin' ? 'Admin' : member.role === 'manager' ? 'Gestor' : 'Membro'}
-                    </Badge>
-                    {isAdmin && (
-                      <button
-                        onClick={() => removeMemberMutation.mutate(member.id)}
-                        className="text-muted-foreground hover:text-red-400 transition-colors ml-1"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
+                {team.members.map(member => {
+                  const memberIsLead = (member as any).isLead === true;
+                  return (
+                    <div key={member.id} className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 ${memberIsLead ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-muted/30'}`}>
+                      <Avatar className="size-7">
+                        <AvatarImage src={member.profileImageUrl || undefined} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                          {getInitials(member)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">
+                        {member.firstName && member.lastName
+                          ? `${member.firstName} ${member.lastName}`
+                          : member.email}
+                      </span>
+                      <Badge className={
+                        member.role === 'admin' ? 'bg-red-500/20 text-red-400 border-red-500/30 text-xs' :
+                        member.role === 'manager' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs' :
+                        'bg-muted text-muted-foreground text-xs'
+                      }>
+                        {member.role === 'admin' ? 'Admin' : member.role === 'manager' ? 'Gestor' : 'Membro'}
+                      </Badge>
+                      {memberIsLead && (
+                        <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs gap-1">
+                          <Crown className="w-2.5 h-2.5" /> Líder
+                        </Badge>
+                      )}
+                      {isAdmin && (
+                        <>
+                          <button
+                            title={memberIsLead ? "Remover líder" : "Tornar líder"}
+                            onClick={() => toggleLeadMutation.mutate({ userId: member.id, isLead: !memberIsLead })}
+                            className={`transition-colors ${memberIsLead ? 'text-yellow-400 hover:text-yellow-600' : 'text-muted-foreground hover:text-yellow-400'}`}
+                          >
+                            <Crown className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => removeMemberMutation.mutate(member.id)}
+                            className="text-muted-foreground hover:text-red-400 transition-colors"
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -308,6 +335,11 @@ export default function TeamsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [teamDesc, setTeamDesc] = useState("");
+  const [tmplDialogOpen, setTmplDialogOpen] = useState(false);
+  const [tmplTitle, setTmplTitle] = useState("");
+  const [tmplDesc, setTmplDesc] = useState("");
+  const [tmplPriority, setTmplPriority] = useState("medium");
+  const [tmplComplexity, setTmplComplexity] = useState("medium");
 
   const { data: teams = [], isLoading } = useQuery<TeamWithMembers[]>({
     queryKey: ["/api/teams"],
@@ -315,6 +347,39 @@ export default function TeamsPage() {
 
   const { data: allUsers = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: templates = [] } = useQuery<TaskTemplate[]>({
+    queryKey: ["/api/task-templates"],
+    enabled: isAdmin,
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/task-templates", {
+      title: tmplTitle,
+      description: tmplDesc,
+      priority: tmplPriority,
+      complexity: tmplComplexity,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/task-templates"] });
+      toast({ title: "Template criado com sucesso!" });
+      setTmplDialogOpen(false);
+      setTmplTitle("");
+      setTmplDesc("");
+      setTmplPriority("medium");
+      setTmplComplexity("medium");
+    },
+    onError: () => toast({ title: "Erro ao criar template", variant: "destructive" }),
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/task-templates/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/task-templates"] });
+      toast({ title: "Template removido" });
+    },
+    onError: () => toast({ title: "Erro ao remover template", variant: "destructive" }),
   });
 
   const createTeamMutation = useMutation({
@@ -409,6 +474,109 @@ export default function TeamsPage() {
           {teams.map(team => (
             <TeamCard key={team.id} team={team} allUsers={allUsers as User[]} />
           ))}
+        </div>
+      )}
+
+      {/* Templates section - admin/manager only */}
+      {isAdmin && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <LayoutTemplate className="w-4 h-4" />
+              Templates de Tarefa
+            </h3>
+            <Button size="sm" onClick={() => setTmplDialogOpen(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Novo Template
+            </Button>
+          </div>
+
+          {templates.length === 0 ? (
+            <Card className="border-border/50">
+              <CardContent className="py-8 text-center text-muted-foreground text-sm">
+                Nenhum template cadastrado. Crie templates para agilizar a criação de tarefas.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {templates.map(tmpl => (
+                <Card key={tmpl.id} className="border-border/50 hover:border-primary/30 transition-colors">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{tmpl.title}</p>
+                        {tmpl.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tmpl.description}</p>}
+                        <div className="flex gap-1.5 mt-2">
+                          <Badge variant="outline" className="text-[10px]">{tmpl.priority}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{tmpl.complexity}</Badge>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive shrink-0"
+                        onClick={() => deleteTemplateMutation.mutate(tmpl.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Create template dialog */}
+          <Dialog open={tmplDialogOpen} onOpenChange={setTmplDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Novo Template de Tarefa</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>Título *</Label>
+                  <Input value={tmplTitle} onChange={e => setTmplTitle(e.target.value)} placeholder="Nome do template..." />
+                </div>
+                <div>
+                  <Label>Descrição</Label>
+                  <Textarea value={tmplDesc} onChange={e => setTmplDesc(e.target.value)} rows={3} placeholder="Descrição padrão..." />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Prioridade</Label>
+                    <Select value={tmplPriority} onValueChange={setTmplPriority}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">Alta</SelectItem>
+                        <SelectItem value="medium">Média</SelectItem>
+                        <SelectItem value="low">Baixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Complexidade</Label>
+                    <Select value={tmplComplexity} onValueChange={setTmplComplexity}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="complex">Complexa</SelectItem>
+                        <SelectItem value="medium">Média</SelectItem>
+                        <SelectItem value="simple">Simples</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <Button variant="outline" onClick={() => setTmplDialogOpen(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => createTemplateMutation.mutate()}
+                  disabled={!tmplTitle.trim() || createTemplateMutation.isPending}
+                >
+                  {createTemplateMutation.isPending ? "Criando..." : "Criar Template"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

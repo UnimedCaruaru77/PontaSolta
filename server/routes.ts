@@ -2,19 +2,30 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./localAuth";
-import { insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema, insertTeamSchema, insertBoardSchema, insertUserSchema, insertTagSchema } from "@shared/schema";
+import {
+  insertTaskSchema, insertSubtaskSchema, insertTaskCommentSchema,
+  insertTeamSchema, insertBoardSchema, insertUserSchema, insertTagSchema,
+  insertTeamEventSchema, insertSkillDefinitionSchema, insertMemberEvaluationSchema,
+  insertTaskTemplateSchema, insertNotificationSchema, insertOnboardingItemSchema,
+} from "@shared/schema";
 import { z } from "zod";
+
+async function canAccessDashboard(req: any, teamId: string): Promise<boolean> {
+  const user = req.user;
+  if (user.role === 'admin' || user.role === 'manager') return true;
+  const isLead = await storage.isTeamLead(teamId, user.id);
+  if (isLead) return true;
+  const settings = await storage.getTeamSettings(teamId);
+  return settings.dashboardPublic === true;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      res.json(req.user);
-    } catch (error: any) {
-      res.status(500).json({ message: "Erro ao buscar usuário" });
-    }
+    try { res.json(req.user); }
+    catch (error: any) { res.status(500).json({ message: "Erro ao buscar usuário" }); }
   });
 
   // Dashboard stats
@@ -22,26 +33,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const stats = await storage.getDashboardStats(req.user.id);
       res.json(stats);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch dashboard stats" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to fetch dashboard stats" }); }
+  });
+
+  // Team dashboard stats (with access control)
+  app.get('/api/teams/:id/dashboard', isAuthenticated, async (req: any, res) => {
+    try {
+      const allowed = await canAccessDashboard(req, req.params.id);
+      if (!allowed) return res.status(403).json({ message: "Acesso negado ao dashboard desta equipe" });
+      const stats = await storage.getTeamDashboardStats(req.params.id);
+      res.json(stats);
+    } catch (error) { res.status(500).json({ message: "Falha ao buscar stats da equipe" }); }
   });
 
   // ── Users ────────────────────────────────────────────────────
   app.get('/api/users', isAuthenticated, async (req: any, res) => {
-    try {
-      const allUsers = await storage.getUsers();
-      res.json(allUsers);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch users" });
-    }
+    try { res.json(await storage.getUsers()); }
+    catch (error) { res.status(500).json({ message: "Failed to fetch users" }); }
   });
 
   app.post('/api/users', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão para criar usuários" });
-      }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão para criar usuários" });
       const userData = insertUserSchema.partial().parse(req.body);
       if (!userData.email) return res.status(400).json({ message: "Email é obrigatório" });
       const existing = await storage.getUserByEmail(userData.email);
@@ -56,27 +69,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/users/:id', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
-        return res.status(403).json({ message: "Sem permissão para editar este usuário" });
-      }
-      const updated = await storage.updateUser(req.params.id, req.body);
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ message: "Falha ao atualizar usuário" });
-    }
+      if (req.user.role !== 'admin' && req.user.id !== req.params.id) return res.status(403).json({ message: "Sem permissão para editar este usuário" });
+      res.json(await storage.updateUser(req.params.id, req.body));
+    } catch (error) { res.status(500).json({ message: "Falha ao atualizar usuário" }); }
   });
 
   // ── Teams ────────────────────────────────────────────────────
   app.get('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
       const isMember = req.user.role === 'member';
-      const teamsList = isMember
-        ? await storage.getTeamsByUser(req.user.id)
-        : await storage.getTeams();
+      const teamsList = isMember ? await storage.getTeamsByUser(req.user.id) : await storage.getTeams();
       res.json(teamsList);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch teams" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to fetch teams" }); }
   });
 
   app.get('/api/teams/:id', isAuthenticated, async (req: any, res) => {
@@ -84,19 +88,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const team = await storage.getTeam(req.params.id);
       if (!team) return res.status(404).json({ message: "Team not found" });
       res.json(team);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch team" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to fetch team" }); }
   });
 
   app.post('/api/teams', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
       const teamData = insertTeamSchema.parse(req.body);
-      const team = await storage.createTeam(teamData);
-      res.status(201).json(team);
+      res.status(201).json(await storage.createTeam(teamData));
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
       res.status(500).json({ message: "Failed to create team" });
@@ -105,26 +104,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/teams/:id', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
-      const team = await storage.updateTeam(req.params.id, req.body);
-      res.json(team);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update team" });
-    }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
+      res.json(await storage.updateTeam(req.params.id, req.body));
+    } catch (error) { res.status(500).json({ message: "Failed to update team" }); }
   });
 
   app.delete('/api/teams/:id', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: "Apenas admins podem excluir equipes" });
-      }
+      if (req.user.role !== 'admin') return res.status(403).json({ message: "Apenas admins podem excluir equipes" });
       await storage.deleteTeam(req.params.id);
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete team" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to delete team" }); }
   });
 
   app.get('/api/teams/:id/members', isAuthenticated, async (req: any, res) => {
@@ -134,37 +124,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const memberTeamIds = await storage.getTeamIdsByUser(req.user.id);
         if (!memberTeamIds.includes(req.params.id)) return res.json([]);
       }
-      const members = await storage.getUsersByTeam(req.params.id);
-      res.json(members);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch team members" });
-    }
+      res.json(await storage.getUsersByTeam(req.params.id));
+    } catch (error) { res.status(500).json({ message: "Failed to fetch team members" }); }
   });
 
   app.post('/api/teams/:id/members', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ message: "userId é obrigatório" });
       await storage.addTeamMember(req.params.id, userId);
       res.status(201).json({ message: "Membro adicionado" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to add team member" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to add team member" }); }
   });
 
   app.delete('/api/teams/:id/members/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
       await storage.removeTeamMember(req.params.id, req.params.userId);
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to remove team member" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to remove team member" }); }
+  });
+
+  // Toggle isLead for a team member
+  app.patch('/api/teams/:id/members/:userId/lead', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
+      const { isLead } = req.body;
+      if (typeof isLead !== 'boolean') return res.status(400).json({ message: "isLead deve ser boolean" });
+      await storage.setTeamLead(req.params.id, req.params.userId, isLead);
+      res.json({ message: "Liderança atualizada" });
+    } catch (error) { res.status(500).json({ message: "Falha ao atualizar liderança" }); }
   });
 
   app.get('/api/teams/:id/boards', isAuthenticated, async (req: any, res) => {
@@ -174,31 +164,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const memberTeamIds = await storage.getTeamIdsByUser(req.user.id);
         if (!memberTeamIds.includes(req.params.id)) return res.json([]);
       }
-      const teamBoards = await storage.getBoardsByTeam(req.params.id);
-      res.json(teamBoards);
+      res.json(await storage.getBoardsByTeam(req.params.id));
+    } catch (error) { res.status(500).json({ message: "Failed to fetch boards" }); }
+  });
+
+  // Team settings
+  app.get('/api/teams/:id/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      res.json(await storage.getTeamSettings(req.params.id));
+    } catch (error) { res.status(500).json({ message: "Falha ao buscar configurações" }); }
+  });
+
+  app.patch('/api/teams/:id/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = await storage.isTeamLead(req.params.id, req.user.id);
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) return res.status(403).json({ message: "Sem permissão" });
+      res.json(await storage.upsertTeamSettings(req.params.id, req.body));
+    } catch (error) { res.status(500).json({ message: "Falha ao salvar configurações" }); }
+  });
+
+  // ── Team Events (Calendar) ────────────────────────────────────
+  app.get('/api/teams/:id/events', isAuthenticated, async (req: any, res) => {
+    try {
+      res.json(await storage.getTeamEvents(req.params.id));
+    } catch (error) { res.status(500).json({ message: "Falha ao buscar eventos" }); }
+  });
+
+  app.post('/api/teams/:id/events', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = await storage.isTeamLead(req.params.id, req.user.id);
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) return res.status(403).json({ message: "Sem permissão para criar eventos" });
+      const data = insertTeamEventSchema.parse({ ...req.body, teamId: req.params.id, createdBy: req.user.id });
+      res.status(201).json(await storage.createTeamEvent(data));
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch boards" });
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao criar evento" });
     }
+  });
+
+  app.patch('/api/events/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      res.json(await storage.updateTeamEvent(req.params.id, req.body));
+    } catch (error) { res.status(500).json({ message: "Falha ao atualizar evento" }); }
+  });
+
+  app.delete('/api/events/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteTeamEvent(req.params.id);
+      res.status(204).send();
+    } catch (error) { res.status(500).json({ message: "Falha ao excluir evento" }); }
   });
 
   // ── Boards ────────────────────────────────────────────────────
   app.get('/api/boards', isAuthenticated, async (req: any, res) => {
-    try {
-      const allBoards = await storage.getBoards();
-      res.json(allBoards);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch boards" });
-    }
+    try { res.json(await storage.getBoards()); }
+    catch (error) { res.status(500).json({ message: "Failed to fetch boards" }); }
   });
 
   app.post('/api/boards', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão" });
-      }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
       const boardData = insertBoardSchema.parse(req.body);
-      const board = await storage.createBoard(boardData);
-      res.status(201).json(board);
+      res.status(201).json(await storage.createBoard(boardData));
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
       res.status(500).json({ message: "Failed to create board" });
@@ -206,21 +233,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch('/api/boards/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const board = await storage.updateBoard(req.params.id, req.body);
-      res.json(board);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update board" });
-    }
+    try { res.json(await storage.updateBoard(req.params.id, req.body)); }
+    catch (error) { res.status(500).json({ message: "Failed to update board" }); }
   });
 
   app.delete('/api/boards/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.deleteBoard(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete board" });
-    }
+    try { await storage.deleteBoard(req.params.id); res.status(204).send(); }
+    catch (error) { res.status(500).json({ message: "Failed to delete board" }); }
   });
 
   // ── Tasks ────────────────────────────────────────────────────
@@ -234,13 +253,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status) filters.status = status;
 
       const isMember = req.user.role === 'member';
-
       if (isMember) {
         const memberTeamIds = await storage.getTeamIdsByUser(req.user.id);
         if (teamId) {
-          if (!memberTeamIds.includes(teamId as string)) {
-            return res.json([]);
-          }
+          if (!memberTeamIds.includes(teamId as string)) return res.json([]);
           filters.teamId = teamId;
         } else {
           filters.teamIds = memberTeamIds;
@@ -250,10 +266,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (teamId) filters.teamId = teamId;
       }
 
-      const tasksList = await storage.getTasks(filters);
-      res.json(tasksList);
+      res.json(await storage.getTasks(filters));
     } catch (error: any) {
-      console.error("[tasks] GET /api/tasks error:", error?.message || error);
+      console.error("[tasks] GET error:", error?.message || error);
       res.status(500).json({ message: "Failed to fetch tasks" });
     }
   });
@@ -263,9 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const task = await storage.getTask(req.params.id);
       if (!task) return res.status(404).json({ message: "Task not found" });
       res.json(task);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch task" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to fetch task" }); }
   });
 
   app.post('/api/tasks', isAuthenticated, async (req: any, res) => {
@@ -273,10 +286,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.id;
       const taskData = insertTaskSchema.parse({ ...req.body, creatorId: userId });
       const task = await storage.createTask(taskData);
-      await storage.createAuditLog({
-        taskId: task.id, userId, action: 'created',
-        field: null, oldValue: null, newValue: JSON.stringify(task),
-      });
+      await storage.createAuditLog({ taskId: task.id, userId, action: 'created', field: null, oldValue: null, newValue: JSON.stringify(task) });
+
+      // Notify assignee
+      if (task.assigneeId && task.assigneeId !== userId) {
+        await storage.createNotification({
+          userId: task.assigneeId,
+          title: 'Nova tarefa atribuída',
+          message: `Você foi designado para a tarefa "${task.title}"`,
+          type: 'task',
+          taskId: task.id,
+        });
+      }
+
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Invalid task data", errors: error.errors });
@@ -291,52 +313,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const oldTask = await storage.getTask(taskId);
       if (!oldTask) return res.status(404).json({ message: "Task not found" });
 
-      // Coerce date strings to Date objects via Zod before passing to Drizzle
       let parsed = insertTaskSchema.partial().parse(req.body);
 
-      // ── Renegotiation logic ──
-      // If dueDate is being changed and the current task is overdue (or renegotiated+overdue)
-      // and status is not done, automatically set status to renegotiated
       const isChangingDueDate = parsed.dueDate !== undefined;
       const currentDue = oldTask.dueDate ? new Date(oldTask.dueDate) : null;
       const now = new Date();
       const isOverdue = currentDue && currentDue < now && oldTask.status !== 'done';
-      const isRenegotiatedAndOverdue = oldTask.status === 'renegotiated' &&
-        currentDue && currentDue < now;
+      const isRenegotiatedAndOverdue = oldTask.status === 'renegotiated' && currentDue && currentDue < now;
 
       if (isChangingDueDate && (isOverdue || isRenegotiatedAndOverdue)) {
-        parsed = {
-          ...parsed,
-          status: 'renegotiated' as any,
-          renegotiationCount: (oldTask.renegotiationCount || 0) + 1,
-          lastRenegotiatedAt: now,
-        };
+        parsed = { ...parsed, status: 'renegotiated' as any, renegotiationCount: (oldTask.renegotiationCount || 0) + 1, lastRenegotiatedAt: now };
       }
 
       const task = await storage.updateTask(taskId, parsed as any);
 
       const auditLogs = [];
-
-      // Log renegotiation specifically
       if (isChangingDueDate && (isOverdue || isRenegotiatedAndOverdue)) {
-        auditLogs.push(storage.createAuditLog({
-          taskId, userId, action: 'renegotiated',
-          field: 'dueDate',
-          oldValue: currentDue ? currentDue.toISOString() : null,
-          newValue: parsed.dueDate ? (parsed.dueDate as Date).toISOString() : null,
-        }));
+        auditLogs.push(storage.createAuditLog({ taskId, userId, action: 'renegotiated', field: 'dueDate', oldValue: currentDue ? currentDue.toISOString() : null, newValue: parsed.dueDate ? (parsed.dueDate as Date).toISOString() : null }));
       } else {
         for (const [field, newValue] of Object.entries(req.body)) {
           const oldValue = (oldTask as any)[field];
           if (oldValue !== newValue && field !== 'updatedAt') {
-            auditLogs.push(storage.createAuditLog({
-              taskId, userId, action: 'updated', field,
-              oldValue: oldValue != null ? JSON.stringify(oldValue) : null,
-              newValue: newValue != null ? JSON.stringify(newValue) : null,
-            }));
+            auditLogs.push(storage.createAuditLog({ taskId, userId, action: 'updated', field, oldValue: oldValue != null ? JSON.stringify(oldValue) : null, newValue: newValue != null ? JSON.stringify(newValue) : null }));
           }
         }
       }
+
+      // Notify if assignee changed
+      if (parsed.assigneeId && parsed.assigneeId !== oldTask.assigneeId && parsed.assigneeId !== userId) {
+        await storage.createNotification({
+          userId: parsed.assigneeId,
+          title: 'Tarefa atribuída a você',
+          message: `Você foi designado para a tarefa "${task.title}"`,
+          type: 'task',
+          taskId: task.id,
+        });
+      }
+
       await Promise.all(auditLogs);
       res.json(task);
     } catch (error) {
@@ -345,14 +358,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/tasks/:id', isAuthenticated, async (req: any, res) => {
+    try { await storage.deleteTask(req.params.id); res.status(204).send(); }
+    catch (error) { res.status(500).json({ message: "Failed to delete task" }); }
+  });
+
   // ── Task Shares ───────────────────────────────────────────────
   app.get('/api/tasks/:id/shares', isAuthenticated, async (req: any, res) => {
-    try {
-      const sharedTeams = await storage.getTaskShares(req.params.id);
-      res.json(sharedTeams);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch task shares" });
-    }
+    try { res.json(await storage.getTaskShares(req.params.id)); }
+    catch (error) { res.status(500).json({ message: "Failed to fetch task shares" }); }
   });
 
   app.post('/api/tasks/:id/shares', isAuthenticated, async (req: any, res) => {
@@ -361,9 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!teamId) return res.status(400).json({ message: "teamId é obrigatório" });
       await storage.addTaskShare(req.params.id, teamId);
       res.status(201).json({ message: "Equipe adicionada ao compartilhamento" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to share task" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to share task" }); }
   });
 
   app.patch('/api/tasks/:id/shares/:teamId', isAuthenticated, async (req: any, res) => {
@@ -371,47 +383,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { assigneeId } = req.body;
       await storage.setShareAssignee(req.params.id, req.params.teamId, assigneeId ?? null);
       res.json({ message: "Responsável da equipe atualizado" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update share assignee" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to update share assignee" }); }
   });
 
   app.delete('/api/tasks/:id/shares/:teamId', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.removeTaskShare(req.params.id, req.params.teamId);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to remove task share" });
-    }
-  });
-
-  app.delete('/api/tasks/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.deleteTask(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete task" });
-    }
+    try { await storage.removeTaskShare(req.params.id, req.params.teamId); res.status(204).send(); }
+    catch (error) { res.status(500).json({ message: "Failed to remove task share" }); }
   });
 
   // ── Tags ─────────────────────────────────────────────────────
   app.get('/api/tags', isAuthenticated, async (req: any, res) => {
-    try {
-      const allTags = await storage.getTags();
-      res.json(allTags);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch tags" });
-    }
+    try { res.json(await storage.getTags()); }
+    catch (error) { res.status(500).json({ message: "Failed to fetch tags" }); }
   });
 
   app.post('/api/tags', isAuthenticated, async (req: any, res) => {
     try {
-      if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        return res.status(403).json({ message: "Sem permissão para criar etiquetas" });
-      }
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão para criar etiquetas" });
       const tagData = insertTagSchema.parse(req.body);
-      const newTag = await storage.createTag(tagData);
-      res.status(201).json(newTag);
+      res.status(201).json(await storage.createTag(tagData));
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
       res.status(500).json({ message: "Failed to create tag" });
@@ -424,28 +414,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tagId) return res.status(400).json({ message: "tagId é obrigatório" });
       await storage.addTaskTag(req.params.id, tagId);
       res.status(201).json({ ok: true });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to add tag to task" });
-    }
+    } catch (error) { res.status(500).json({ message: "Failed to add tag to task" }); }
   });
 
   app.delete('/api/tasks/:id/tags/:tagId', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.removeTaskTag(req.params.id, req.params.tagId);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to remove tag from task" });
-    }
+    try { await storage.removeTaskTag(req.params.id, req.params.tagId); res.status(204).send(); }
+    catch (error) { res.status(500).json({ message: "Failed to remove tag from task" }); }
   });
 
   // ── Dependencies ─────────────────────────────────────────────
   app.get('/api/tasks/:id/dependencies', isAuthenticated, async (req: any, res) => {
-    try {
-      const deps = await storage.getTaskDependencies(req.params.id);
-      res.json(deps);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch dependencies" });
-    }
+    try { res.json(await storage.getTaskDependencies(req.params.id)); }
+    catch (error) { res.status(500).json({ message: "Failed to fetch dependencies" }); }
   });
 
   app.post('/api/tasks/:id/dependencies', isAuthenticated, async (req: any, res) => {
@@ -455,28 +435,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addTaskDependency(req.params.id, dependsOnTaskId);
       res.status(201).json({ ok: true });
     } catch (error: any) {
-      if (error?.message?.includes("circular") || error?.message?.includes("si mesma")) {
-        return res.status(400).json({ message: error.message });
-      }
+      if (error?.message?.includes("circular") || error?.message?.includes("si mesma")) return res.status(400).json({ message: error.message });
       res.status(500).json({ message: "Failed to add dependency" });
     }
   });
 
   app.delete('/api/tasks/:id/dependencies/:dependsOnTaskId', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.removeTaskDependency(req.params.id, req.params.dependsOnTaskId);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to remove dependency" });
-    }
+    try { await storage.removeTaskDependency(req.params.id, req.params.dependsOnTaskId); res.status(204).send(); }
+    catch (error) { res.status(500).json({ message: "Failed to remove dependency" }); }
   });
 
   // ── Subtasks ─────────────────────────────────────────────────
   app.post('/api/tasks/:taskId/subtasks', isAuthenticated, async (req: any, res) => {
     try {
       const subtaskData = insertSubtaskSchema.parse({ ...req.body, taskId: req.params.taskId });
-      const subtask = await storage.createSubtask(subtaskData);
-      res.status(201).json(subtask);
+      res.status(201).json(await storage.createSubtask(subtaskData));
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Invalid subtask data", errors: error.errors });
       res.status(500).json({ message: "Failed to create subtask" });
@@ -484,45 +457,181 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch('/api/subtasks/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const subtask = await storage.updateSubtask(req.params.id, req.body);
-      res.json(subtask);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update subtask" });
-    }
+    try { res.json(await storage.updateSubtask(req.params.id, req.body)); }
+    catch (error) { res.status(500).json({ message: "Failed to update subtask" }); }
   });
 
   app.delete('/api/subtasks/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      await storage.deleteSubtask(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete subtask" });
-    }
+    try { await storage.deleteSubtask(req.params.id); res.status(204).send(); }
+    catch (error) { res.status(500).json({ message: "Failed to delete subtask" }); }
   });
 
   // ── Audit log ────────────────────────────────────────────────
   app.get('/api/tasks/:taskId/audit', isAuthenticated, async (req: any, res) => {
-    try {
-      const logs = await storage.getTaskAuditLogs(req.params.taskId);
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch audit logs" });
-    }
+    try { res.json(await storage.getTaskAuditLogs(req.params.taskId)); }
+    catch (error) { res.status(500).json({ message: "Failed to fetch audit logs" }); }
   });
 
   // ── Comments ─────────────────────────────────────────────────
   app.post('/api/tasks/:taskId/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const commentData = insertTaskCommentSchema.parse({
-        ...req.body, taskId: req.params.taskId, userId: req.user.id,
-      });
+      const commentData = insertTaskCommentSchema.parse({ ...req.body, taskId: req.params.taskId, userId: req.user.id });
       const comment = await storage.createComment(commentData);
+
+      // Notify task assignee about comment
+      const task = await storage.getTask(req.params.taskId);
+      if (task && task.assigneeId && task.assigneeId !== req.user.id) {
+        await storage.createNotification({
+          userId: task.assigneeId,
+          title: 'Novo comentário',
+          message: `Comentário adicionado na tarefa "${task.title}"`,
+          type: 'task',
+          taskId: task.id,
+        });
+      }
+
       res.status(201).json(comment);
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Invalid comment data", errors: error.errors });
       res.status(500).json({ message: "Failed to create comment" });
     }
+  });
+
+  // ── Skills ────────────────────────────────────────────────────
+  app.get('/api/skills', isAuthenticated, async (req: any, res) => {
+    try { res.json(await storage.getSkillDefinitions()); }
+    catch (error) { res.status(500).json({ message: "Falha ao buscar skills" }); }
+  });
+
+  app.post('/api/skills', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
+      const data = insertSkillDefinitionSchema.parse(req.body);
+      res.status(201).json(await storage.createSkillDefinition(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao criar skill" });
+    }
+  });
+
+  app.delete('/api/skills/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
+      await storage.deleteSkillDefinition(req.params.id);
+      res.status(204).send();
+    } catch (error) { res.status(500).json({ message: "Falha ao excluir skill" }); }
+  });
+
+  // ── Member Evaluations ────────────────────────────────────────
+  app.get('/api/teams/:id/evaluations/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      res.json(await storage.getMemberEvaluations(req.params.id, req.params.userId));
+    } catch (error) { res.status(500).json({ message: "Falha ao buscar avaliações" }); }
+  });
+
+  app.post('/api/teams/:id/evaluations', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = await storage.isTeamLead(req.params.id, req.user.id);
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) return res.status(403).json({ message: "Apenas líderes podem avaliar membros" });
+      const data = insertMemberEvaluationSchema.parse({ ...req.body, teamId: req.params.id, evaluatorId: req.user.id });
+      res.status(201).json(await storage.upsertEvaluation(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao salvar avaliação" });
+    }
+  });
+
+  // ── Task Templates ────────────────────────────────────────────
+  app.get('/api/task-templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const { teamId } = req.query;
+      res.json(await storage.getTaskTemplates(teamId as string | undefined));
+    } catch (error) { res.status(500).json({ message: "Falha ao buscar templates" }); }
+  });
+
+  app.post('/api/task-templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = req.body.teamId ? await storage.isTeamLead(req.body.teamId, req.user.id) : false;
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) return res.status(403).json({ message: "Sem permissão" });
+      const data = insertTaskTemplateSchema.parse({ ...req.body, createdBy: req.user.id });
+      res.status(201).json(await storage.createTaskTemplate(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao criar template" });
+    }
+  });
+
+  app.delete('/api/task-templates/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin' && req.user.role !== 'manager') return res.status(403).json({ message: "Sem permissão" });
+      await storage.deleteTaskTemplate(req.params.id);
+      res.status(204).send();
+    } catch (error) { res.status(500).json({ message: "Falha ao excluir template" }); }
+  });
+
+  // ── Notifications ─────────────────────────────────────────────
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try { res.json(await storage.getUserNotifications(req.user.id)); }
+    catch (error) { res.status(500).json({ message: "Falha ao buscar notificações" }); }
+  });
+
+  app.post('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = req.body.teamId ? await storage.isTeamLead(req.body.teamId, req.user.id) : false;
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) {
+        return res.status(403).json({ message: "Sem permissão para enviar notificações" });
+      }
+      const data = insertNotificationSchema.parse(req.body);
+      const notif = await storage.createNotification(data);
+      res.status(201).json(notif);
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao criar notificação" });
+    }
+  });
+
+  app.patch('/api/notifications/:id/read', isAuthenticated, async (req: any, res) => {
+    try { await storage.markNotificationRead(req.params.id); res.json({ ok: true }); }
+    catch (error) { res.status(500).json({ message: "Falha ao marcar como lida" }); }
+  });
+
+  app.patch('/api/notifications/read-all', isAuthenticated, async (req: any, res) => {
+    try { await storage.markAllNotificationsRead(req.user.id); res.json({ ok: true }); }
+    catch (error) { res.status(500).json({ message: "Falha ao marcar todas como lidas" }); }
+  });
+
+  // ── Onboarding ─────────────────────────────────────────────────
+  app.get('/api/teams/:id/onboarding', isAuthenticated, async (req: any, res) => {
+    try { res.json(await storage.getOnboardingProgress(req.params.id)); }
+    catch (error) { res.status(500).json({ message: "Falha ao buscar onboarding" }); }
+  });
+
+  app.post('/api/teams/:id/onboarding', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = await storage.isTeamLead(req.params.id, req.user.id);
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) return res.status(403).json({ message: "Sem permissão" });
+      const data = insertOnboardingItemSchema.parse({ ...req.body, teamId: req.params.id });
+      res.status(201).json(await storage.createOnboardingItem(data));
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Dados inválidos", errors: error.errors });
+      res.status(500).json({ message: "Falha ao criar item" });
+    }
+  });
+
+  app.delete('/api/teams/:id/onboarding/:itemId', isAuthenticated, async (req: any, res) => {
+    try {
+      const isLead = await storage.isTeamLead(req.params.id, req.user.id);
+      if (req.user.role !== 'admin' && req.user.role !== 'manager' && !isLead) return res.status(403).json({ message: "Sem permissão" });
+      await storage.deleteOnboardingItem(req.params.itemId);
+      res.status(204).send();
+    } catch (error) { res.status(500).json({ message: "Falha ao excluir item" }); }
+  });
+
+  app.post('/api/teams/:id/onboarding/:itemId/toggle', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.toggleOnboardingProgress(req.params.itemId, req.user.id);
+      res.json({ ok: true });
+    } catch (error) { res.status(500).json({ message: "Falha ao atualizar progresso" }); }
   });
 
   const httpServer = createServer(app);

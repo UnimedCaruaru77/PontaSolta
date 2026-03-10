@@ -9,56 +9,185 @@ import {
   LogOut,
   Network,
   Search,
+  BarChart2,
+  CalendarDays,
+  Users2,
+  TrendingUp,
+  Bell,
+  Check,
 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
 import { GlobalSearch } from "@/components/global-search";
-import type { User } from "@shared/schema";
+import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { ScrollArea } from "./scroll-area";
+import { apiRequest } from "@/lib/queryClient";
+import type { User, Notification } from "@shared/schema";
 
 interface SidebarNavProps {
   user?: User | null;
   currentPath: string;
 }
 
-const navItems = [
-  { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/kanban", icon: Kanban, label: "Kanban" },
-  { path: "/tasks", icon: ClipboardList, label: "Minhas Tarefas" },
-  { path: "/equipes", icon: Network, label: "Equipes" },
-  { path: "/team", icon: UsersRound, label: "Equipe" },
-  { path: "/users", icon: Users, label: "Usuários" },
+const baseNavItems = [
+  { path: "/", icon: LayoutDashboard, label: "Dashboard", roles: ["all"] },
+  { path: "/analytics", icon: BarChart2, label: "Analytics", roles: ["all"] },
+  { path: "/kanban", icon: Kanban, label: "Kanban", roles: ["all"] },
+  { path: "/tasks", icon: ClipboardList, label: "Minhas Tarefas", roles: ["all"] },
+  { path: "/equipes", icon: Network, label: "Equipes", roles: ["all"] },
+  { path: "/calendar", icon: CalendarDays, label: "Calendário", roles: ["all"] },
+  { path: "/hub", icon: Users2, label: "Hub da Equipe", roles: ["all"] },
+  { path: "/performance", icon: TrendingUp, label: "Desempenho", roles: ["admin", "manager", "lead"] },
+  { path: "/team", icon: UsersRound, label: "Minha Equipe", roles: ["all"] },
+  { path: "/users", icon: Users, label: "Usuários", roles: ["admin", "manager"] },
 ];
+
+function NotificationBell({ user }: { user?: User | null }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data: notifications = [] } = useQuery<Notification[]>({
+    queryKey: ["/api/notifications"],
+    refetchInterval: 30000,
+    enabled: !!user,
+  });
+
+  const unread = notifications.filter(n => !n.read).length;
+
+  const markAllMutation = useMutation({
+    mutationFn: () => apiRequest("/api/notifications/read-all", "PATCH", {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/notifications"] }),
+  });
+
+  const markOneMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/notifications/${id}/read`, "PATCH", {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/notifications"] }),
+  });
+
+  const typeIcon: Record<string, string> = {
+    task: "🔔",
+    announcement: "📢",
+    warning: "⚠️",
+    info: "ℹ️",
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-muted-foreground hover:text-foreground"
+          title="Notificações"
+        >
+          <Bell className="w-5 h-5" />
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 leading-none">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" side="right" align="start">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+          <span className="text-sm font-semibold">Notificações</span>
+          {unread > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs gap-1 text-muted-foreground"
+              onClick={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isPending}
+            >
+              <Check className="w-3 h-3" />
+              Marcar todas como lidas
+            </Button>
+          )}
+        </div>
+        <ScrollArea className="max-h-80">
+          {notifications.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhuma notificação.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {notifications.map(n => (
+                <div
+                  key={n.id}
+                  className={cn(
+                    "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
+                    !n.read && "bg-primary/5"
+                  )}
+                  onClick={() => !n.read && markOneMutation.mutate(n.id)}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-base mt-0.5">{typeIcon[n.type] || "🔔"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-xs font-medium truncate", !n.read && "text-foreground")}>{n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.message}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(n.createdAt!), { addSuffix: true, locale: ptBR })}
+                      </p>
+                    </div>
+                    {!n.read && <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Build list of teams where user is lead
+  const { data: teams = [] } = useQuery<any[]>({
+    queryKey: ["/api/teams"],
+    enabled: !!user,
+  });
+  const isLead = teams.some((t: any) => t.members?.some((m: any) => m.id === user?.id && m.isLead));
 
   const handleLogout = () => {
     window.location.href = "/api/auth/logout";
   };
 
   const isActive = (path: string) => {
-    if (path === "/") {
-      return currentPath === "/" || currentPath === "/dashboard";
-    }
+    if (path === "/") return currentPath === "/" || currentPath === "/dashboard";
     return currentPath.startsWith(path);
   };
 
-  const getInitials = (user?: User | null) => {
-    if (!user) return "U";
-    const firstName = user.firstName || user.email?.charAt(0) || "U";
-    const lastName = user.lastName || "";
-    return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+  const getInitials = (u?: User | null) => {
+    if (!u) return "U";
+    const first = u.firstName || u.email?.charAt(0) || "U";
+    const last = u.lastName || "";
+    return (first.charAt(0) + last.charAt(0)).toUpperCase();
   };
+
+  const visibleNavItems = baseNavItems.filter(item => {
+    if (item.roles.includes("all")) return true;
+    if (!user) return false;
+    if (item.roles.includes(user.role || "")) return true;
+    if (item.roles.includes("lead") && isLead) return true;
+    return false;
+  });
 
   return (
     <>
       <div className="w-64 sidebar-gradient border-r border-primary/30 p-6 flex flex-col" data-testid="sidebar">
-        <div className="mb-6">
-          <h1 className="text-2xl font-mono font-bold neon-text" data-testid="sidebar-title">
-            PONTA SOLTA
-          </h1>
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-mono font-bold neon-text" data-testid="sidebar-title">
+              PONTA SOLTA
+            </h1>
+            <NotificationBell user={user} />
+          </div>
           <p className="text-sm text-muted-foreground mt-1" data-testid="sidebar-version">
-            v3.3.0
+            v3.5.0
           </p>
         </div>
 
@@ -74,8 +203,8 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
           <kbd className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
         </Button>
 
-        <nav className="space-y-1 flex-1" data-testid="sidebar-nav">
-          {navItems.map((item) => {
+        <nav className="space-y-0.5 flex-1 overflow-y-auto" data-testid="sidebar-nav">
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
 
@@ -91,18 +220,18 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
                   )}
                   data-testid={`nav-${item.path.substring(1) || "dashboard"}`}
                 >
-                  <Icon className="w-5 h-5 mr-3" />
-                  {item.label}
+                  <Icon className="w-4 h-4 mr-3 shrink-0" />
+                  <span className="text-sm">{item.label}</span>
                 </Button>
               </Link>
             );
           })}
         </nav>
 
-        <div className="pt-6 border-t border-border">
+        <div className="pt-4 border-t border-border mt-2">
           <div className="bg-card border border-border rounded p-3 mb-3">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shrink-0">
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                 ) : (
@@ -115,12 +244,12 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
                 <p className="text-sm font-medium truncate" data-testid="user-name">
                   {user?.firstName && user?.lastName
                     ? `${user.firstName} ${user.lastName}`
-                    : user?.email || "Usuário"
-                  }
+                    : user?.email || "Usuário"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate" data-testid="user-role">
                   {user?.role === 'admin' ? 'Administrador' :
                    user?.role === 'manager' ? 'Gestor' : 'Membro'}
+                  {isLead && " · Líder"}
                 </p>
               </div>
             </div>

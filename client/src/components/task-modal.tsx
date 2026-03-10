@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
-import type { User, Board, TeamWithMembers } from "@shared/schema";
+import { LayoutTemplate } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { User, Board, TeamWithMembers, TaskTemplate } from "@shared/schema";
 
 const taskFormSchema = insertTaskSchema
   .omit({ creatorId: true })
@@ -35,6 +37,7 @@ interface TaskModalProps {
 
 export default function TaskModal({ defaultTeamId, defaultBoardId }: TaskModalProps) {
   const [open, setOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -87,6 +90,29 @@ export default function TaskModal({ defaultTeamId, defaultBoardId }: TaskModalPr
     enabled: open,
   });
 
+  const { data: templates = [] } = useQuery<TaskTemplate[]>({
+    queryKey: ["/api/task-templates", watchedTeamId],
+    queryFn: async () => {
+      const url = watchedTeamId
+        ? `/api/task-templates?teamId=${watchedTeamId}`
+        : "/api/task-templates";
+      const res = await fetch(url, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: open,
+  });
+
+  const applyTemplate = (tmpl: TaskTemplate) => {
+    form.setValue("title", tmpl.title);
+    if (tmpl.description) form.setValue("description", tmpl.description);
+    if (tmpl.priority) form.setValue("priority", tmpl.priority as any);
+    if (tmpl.urgency) form.setValue("urgency", tmpl.urgency as any);
+    if (tmpl.importance) form.setValue("importance", tmpl.importance as any);
+    if (tmpl.complexity) form.setValue("complexity", tmpl.complexity as any);
+    setTemplateDialogOpen(false);
+    toast({ title: `Template "${tmpl.title}" aplicado` });
+  };
+
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskFormData) => {
       await apiRequest("POST", "/api/tasks", data);
@@ -125,6 +151,7 @@ export default function TaskModal({ defaultTeamId, defaultBoardId }: TaskModalPr
   const assigneeOptions = watchedTeamId ? (teamMembers as User[]) : (allUsers as User[]);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
@@ -139,7 +166,21 @@ export default function TaskModal({ defaultTeamId, defaultBoardId }: TaskModalPr
         data-testid="task-modal"
       >
         <DialogHeader>
-          <DialogTitle>Nova Tarefa</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Nova Tarefa</DialogTitle>
+            {templates.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2 text-xs"
+                onClick={() => setTemplateDialogOpen(true)}
+              >
+                <LayoutTemplate className="w-3.5 h-3.5" />
+                Usar Template
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         <Form {...form}>
@@ -454,5 +495,41 @@ export default function TaskModal({ defaultTeamId, defaultBoardId }: TaskModalPr
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Template selection dialog */}
+    <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Selecionar Template</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhum template disponível.</p>
+          ) : (
+            templates.map(tmpl => (
+              <div
+                key={tmpl.id}
+                className="flex items-start gap-3 p-3 border border-border/50 rounded-lg hover:border-primary/40 hover:bg-primary/5 cursor-pointer transition-colors"
+                onClick={() => applyTemplate(tmpl)}
+              >
+                <LayoutTemplate className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{tmpl.title}</p>
+                  {tmpl.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tmpl.description}</p>}
+                  <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                    <Badge variant="outline" className="text-[10px]">{tmpl.priority}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{tmpl.complexity}</Badge>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>Cancelar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

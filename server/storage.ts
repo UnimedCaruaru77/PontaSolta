@@ -11,6 +11,14 @@ import {
   taskAuditLog,
   tags,
   taskTags,
+  teamEvents,
+  skillDefinitions,
+  memberEvaluations,
+  teamSettings,
+  taskTemplates,
+  notifications,
+  onboardingItems,
+  onboardingProgress,
   type User,
   type UpsertUser,
   type Task,
@@ -31,9 +39,24 @@ import {
   type InsertTag,
   type SharedTeamWithAssignee,
   type TaskSummary,
+  type TeamEvent,
+  type InsertTeamEvent,
+  type SkillDefinition,
+  type InsertSkillDefinition,
+  type MemberEvaluation,
+  type InsertMemberEvaluation,
+  type MemberEvaluationWithSkill,
+  type TeamSettings,
+  type TaskTemplate,
+  type InsertTaskTemplate,
+  type Notification,
+  type InsertNotification,
+  type OnboardingItem,
+  type InsertOnboardingItem,
+  type OnboardingItemWithProgress,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, inArray, ne } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray, ne, asc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 export interface IStorage {
@@ -57,6 +80,8 @@ export interface IStorage {
   deleteTeam(id: string): Promise<void>;
   addTeamMember(teamId: string, userId: string): Promise<void>;
   removeTeamMember(teamId: string, userId: string): Promise<void>;
+  setTeamLead(teamId: string, userId: string, isLead: boolean): Promise<void>;
+  isTeamLead(teamId: string, userId: string): Promise<boolean>;
 
   // Board operations
   getBoards(): Promise<Board[]>;
@@ -114,12 +139,45 @@ export interface IStorage {
   removeTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void>;
 
   // Dashboard stats
-  getDashboardStats(userId: string): Promise<{
-    totalTasks: number;
-    criticalTasks: number;
-    inProgressTasks: number;
-    completedTasks: number;
-  }>;
+  getDashboardStats(userId: string): Promise<{ totalTasks: number; criticalTasks: number; inProgressTasks: number; completedTasks: number }>;
+  getTeamDashboardStats(teamId: string): Promise<{ byStatus: Record<string, number>; byPriority: Record<string, number>; byAssignee: { userId: string; name: string; count: number }[]; completionTrend: { date: string; count: number }[] }>;
+
+  // Team events (calendar)
+  getTeamEvents(teamId: string): Promise<TeamEvent[]>;
+  createTeamEvent(data: InsertTeamEvent): Promise<TeamEvent>;
+  updateTeamEvent(id: string, data: Partial<InsertTeamEvent>): Promise<TeamEvent>;
+  deleteTeamEvent(id: string): Promise<void>;
+
+  // Skills
+  getSkillDefinitions(): Promise<SkillDefinition[]>;
+  createSkillDefinition(data: InsertSkillDefinition): Promise<SkillDefinition>;
+  deleteSkillDefinition(id: string): Promise<void>;
+
+  // Member evaluations
+  getMemberEvaluations(teamId: string, userId: string): Promise<MemberEvaluationWithSkill[]>;
+  upsertEvaluation(data: InsertMemberEvaluation): Promise<MemberEvaluation>;
+
+  // Team settings
+  getTeamSettings(teamId: string): Promise<TeamSettings>;
+  upsertTeamSettings(teamId: string, data: Partial<TeamSettings>): Promise<TeamSettings>;
+
+  // Task templates
+  getTaskTemplates(teamId?: string): Promise<TaskTemplate[]>;
+  createTaskTemplate(data: InsertTaskTemplate): Promise<TaskTemplate>;
+  deleteTaskTemplate(id: string): Promise<void>;
+
+  // Notifications
+  getUserNotifications(userId: string): Promise<Notification[]>;
+  createNotification(data: InsertNotification): Promise<Notification>;
+  markNotificationRead(id: string): Promise<void>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+
+  // Onboarding
+  getOnboardingItems(teamId: string): Promise<OnboardingItem[]>;
+  createOnboardingItem(data: InsertOnboardingItem): Promise<OnboardingItem>;
+  deleteOnboardingItem(id: string): Promise<void>;
+  getOnboardingProgress(teamId: string): Promise<OnboardingItemWithProgress[]>;
+  toggleOnboardingProgress(itemId: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -161,10 +219,7 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .insert(users)
       .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: { ...userData, updatedAt: new Date() },
-      })
+      .onConflictDoUpdate({ target: users.id, set: { ...userData, updatedAt: new Date() } })
       .returning();
     return user;
   }
@@ -182,7 +237,7 @@ export class DatabaseStorage implements IStorage {
   // ── Teams ──────────────────────────────────────────────────
   private async enrichTeam(team: Team): Promise<TeamWithMembers> {
     const memberRows = await db
-      .select({ user: users })
+      .select({ user: users, isLead: teamMembers.isLead })
       .from(teamMembers)
       .innerJoin(users, eq(teamMembers.userId, users.id))
       .where(eq(teamMembers.teamId, team.id))
@@ -196,7 +251,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...team,
-      members: memberRows.map(r => r.user),
+      members: memberRows.map(r => ({ ...r.user, isLead: r.isLead ?? false })),
       boards: boardRows,
     };
   }
@@ -223,11 +278,7 @@ export class DatabaseStorage implements IStorage {
   async getTeamsByUser(userId: string): Promise<TeamWithMembers[]> {
     const teamIds = await this.getTeamIdsByUser(userId);
     if (teamIds.length === 0) return [];
-    const userTeams = await db
-      .select()
-      .from(teams)
-      .where(inArray(teams.id, teamIds))
-      .orderBy(teams.name);
+    const userTeams = await db.select().from(teams).where(inArray(teams.id, teamIds)).orderBy(teams.name);
     return Promise.all(userTeams.map(t => this.enrichTeam(t)));
   }
 
@@ -237,11 +288,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTeam(id: string, team: Partial<InsertTeam>): Promise<Team> {
-    const [updated] = await db
-      .update(teams)
-      .set(team)
-      .where(eq(teams.id, id))
-      .returning();
+    const [updated] = await db.update(teams).set(team).where(eq(teams.id, id)).returning();
     return updated;
   }
 
@@ -250,16 +297,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addTeamMember(teamId: string, userId: string): Promise<void> {
-    await db
-      .insert(teamMembers)
-      .values({ teamId, userId })
-      .onConflictDoNothing();
+    await db.insert(teamMembers).values({ teamId, userId }).onConflictDoNothing();
   }
 
   async removeTeamMember(teamId: string, userId: string): Promise<void> {
+    await db.delete(teamMembers).where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  }
+
+  async setTeamLead(teamId: string, userId: string, isLead: boolean): Promise<void> {
     await db
-      .delete(teamMembers)
+      .update(teamMembers)
+      .set({ isLead })
       .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  }
+
+  async isTeamLead(teamId: string, userId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ isLead: teamMembers.isLead })
+      .from(teamMembers)
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+    return row?.isLead ?? false;
   }
 
   // ── Boards ─────────────────────────────────────────────────
@@ -268,11 +325,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBoardsByTeam(teamId: string): Promise<Board[]> {
-    return await db
-      .select()
-      .from(boards)
-      .where(eq(boards.teamId, teamId))
-      .orderBy(boards.name);
+    return await db.select().from(boards).where(eq(boards.teamId, teamId)).orderBy(boards.name);
   }
 
   async getBoard(id: string): Promise<Board | undefined> {
@@ -286,11 +339,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateBoard(id: string, board: Partial<InsertBoard>): Promise<Board> {
-    const [updated] = await db
-      .update(boards)
-      .set(board)
-      .where(eq(boards.id, id))
-      .returning();
+    const [updated] = await db.update(boards).set(board).where(eq(boards.id, id)).returning();
     return updated;
   }
 
@@ -318,36 +367,24 @@ export class DatabaseStorage implements IStorage {
     if (filters?.boardId) conditions.push(eq(tasks.boardId, filters.boardId));
     if (filters?.status) conditions.push(eq(tasks.status, filters.status as any));
 
-    // Restrição por lista de equipes (para membros): task da equipe OU assignee/creator é o próprio usuário
     if (filters?.teamIds && filters.teamIds.length > 0) {
       const uid = filters.requestingUserId;
       const teamFilter = inArray(tasks.teamId, filters.teamIds);
       if (uid) {
-        conditions.push(
-          or(teamFilter, eq(tasks.assigneeId, uid), eq(tasks.creatorId, uid))
-        );
+        conditions.push(or(teamFilter, eq(tasks.assigneeId, uid), eq(tasks.creatorId, uid)));
       } else {
         conditions.push(teamFilter);
       }
     } else if (filters?.teamIds && filters.teamIds.length === 0) {
-      // Membro sem equipes: só vê tasks onde é assignee ou creator
       if (filters.requestingUserId) {
-        conditions.push(
-          or(eq(tasks.assigneeId, filters.requestingUserId), eq(tasks.creatorId, filters.requestingUserId))
-        );
+        conditions.push(or(eq(tasks.assigneeId, filters.requestingUserId), eq(tasks.creatorId, filters.requestingUserId)));
       } else {
         return [];
       }
     }
 
     const results = await db
-      .select({
-        task: tasks,
-        assignee: assigneeAlias,
-        creator: creatorAlias,
-        team: teams,
-        board: boards,
-      })
+      .select({ task: tasks, assignee: assigneeAlias, creator: creatorAlias, team: teams, board: boards })
       .from(tasks)
       .leftJoin(assigneeAlias, eq(tasks.assigneeId, assigneeAlias.id))
       .leftJoin(creatorAlias, eq(tasks.creatorId, creatorAlias.id))
@@ -361,10 +398,8 @@ export class DatabaseStorage implements IStorage {
 
   private async hydrateTaskDetails(results: any[]): Promise<TaskWithDetails[]> {
     if (results.length === 0) return [];
-
     const taskIds = results.map(r => r.task.id);
 
-    // Batch: subtasks
     const allSubtasks = await db.select().from(subtasks).where(inArray(subtasks.taskId, taskIds));
     const subtasksByTask = new Map<string, any[]>();
     for (const s of allSubtasks) {
@@ -372,7 +407,6 @@ export class DatabaseStorage implements IStorage {
       subtasksByTask.get(s.taskId)!.push(s);
     }
 
-    // Batch: comments
     const allComments = await db
       .select({ comment: taskComments, user: users })
       .from(taskComments)
@@ -385,7 +419,6 @@ export class DatabaseStorage implements IStorage {
       commentsByTask.get(c.comment.taskId)!.push({ ...c.comment, user: c.user });
     }
 
-    // Batch: shared teams with assignees
     const sharesByTask = new Map<string, SharedTeamWithAssignee[]>();
     try {
       const assigneeAlias = alias(users, 'shareAssignee');
@@ -403,7 +436,6 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (_) {}
 
-    // Batch: tags
     const tagsByTask = new Map<string, Tag[]>();
     try {
       const allTagRows = await db
@@ -417,7 +449,6 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (_) {}
 
-    // Batch: dependencies
     const depsByTask = new Map<string, TaskSummary[]>();
     const dependentsByTask = new Map<string, TaskSummary[]>();
     try {
@@ -426,12 +457,7 @@ export class DatabaseStorage implements IStorage {
       const depTeamAlias = alias(teams, 'depTeam');
 
       const allDeps = await db
-        .select({
-          taskId: taskDependencies.taskId,
-          dep: depTaskAlias,
-          assignee: depAssigneeAlias,
-          team: depTeamAlias,
-        })
+        .select({ taskId: taskDependencies.taskId, dep: depTaskAlias, assignee: depAssigneeAlias, team: depTeamAlias })
         .from(taskDependencies)
         .innerJoin(depTaskAlias, eq(taskDependencies.dependsOnTaskId, depTaskAlias.id))
         .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
@@ -440,24 +466,11 @@ export class DatabaseStorage implements IStorage {
 
       for (const d of allDeps) {
         if (!depsByTask.has(d.taskId)) depsByTask.set(d.taskId, []);
-        depsByTask.get(d.taskId)!.push({
-          id: d.dep.id,
-          title: d.dep.title,
-          status: d.dep.status,
-          dueDate: d.dep.dueDate,
-          ticketNumber: d.dep.ticketNumber,
-          assignee: d.assignee,
-          team: d.team,
-        });
+        depsByTask.get(d.taskId)!.push({ id: d.dep.id, title: d.dep.title, status: d.dep.status, dueDate: d.dep.dueDate, ticketNumber: d.dep.ticketNumber, assignee: d.assignee, team: d.team });
       }
 
       const allDependents = await db
-        .select({
-          dependsOnTaskId: taskDependencies.dependsOnTaskId,
-          dep: depTaskAlias,
-          assignee: depAssigneeAlias,
-          team: depTeamAlias,
-        })
+        .select({ dependsOnTaskId: taskDependencies.dependsOnTaskId, dep: depTaskAlias, assignee: depAssigneeAlias, team: depTeamAlias })
         .from(taskDependencies)
         .innerJoin(depTaskAlias, eq(taskDependencies.taskId, depTaskAlias.id))
         .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
@@ -466,21 +479,12 @@ export class DatabaseStorage implements IStorage {
 
       for (const d of allDependents) {
         if (!dependentsByTask.has(d.dependsOnTaskId)) dependentsByTask.set(d.dependsOnTaskId, []);
-        dependentsByTask.get(d.dependsOnTaskId)!.push({
-          id: d.dep.id,
-          title: d.dep.title,
-          status: d.dep.status,
-          dueDate: d.dep.dueDate,
-          ticketNumber: d.dep.ticketNumber,
-          assignee: d.assignee,
-          team: d.team,
-        });
+        dependentsByTask.get(d.dependsOnTaskId)!.push({ id: d.dep.id, title: d.dep.title, status: d.dep.status, dueDate: d.dep.dueDate, ticketNumber: d.dep.ticketNumber, assignee: d.assignee, team: d.team });
       }
     } catch (_) {}
 
-    const tasksWithDetails: TaskWithDetails[] = results.map(result => {
+    return results.map(result => {
       const deps = depsByTask.get(result.task.id) || [];
-      const blockedBy = deps.some(d => d.status !== 'done');
       return {
         ...result.task,
         assignee: result.assignee,
@@ -493,10 +497,9 @@ export class DatabaseStorage implements IStorage {
         tags: tagsByTask.get(result.task.id) || [],
         dependencies: deps,
         dependents: dependentsByTask.get(result.task.id) || [],
-        blockedBy,
+        blockedBy: deps.some(d => d.status !== 'done'),
       };
     });
-    return tasksWithDetails;
   }
 
   async getTask(id: string): Promise<TaskWithDetails | undefined> {
@@ -504,13 +507,7 @@ export class DatabaseStorage implements IStorage {
     const creatorAlias = alias(users, 'creator');
 
     const [result] = await db
-      .select({
-        task: tasks,
-        assignee: assigneeAlias,
-        creator: creatorAlias,
-        team: teams,
-        board: boards,
-      })
+      .select({ task: tasks, assignee: assigneeAlias, creator: creatorAlias, team: teams, board: boards })
       .from(tasks)
       .leftJoin(assigneeAlias, eq(tasks.assigneeId, assigneeAlias.id))
       .leftJoin(creatorAlias, eq(tasks.creatorId, creatorAlias.id))
@@ -521,7 +518,6 @@ export class DatabaseStorage implements IStorage {
     if (!result) return undefined;
 
     const taskSubtasks = await db.select().from(subtasks).where(eq(subtasks.taskId, id));
-
     const commentsData = await db
       .select({ comment: taskComments, user: users })
       .from(taskComments)
@@ -533,17 +529,12 @@ export class DatabaseStorage implements IStorage {
 
     let taskTagList: Tag[] = [];
     try {
-      const tagRows = await db
-        .select({ tag: tags })
-        .from(taskTags)
-        .innerJoin(tags, eq(taskTags.tagId, tags.id))
-        .where(eq(taskTags.taskId, id));
+      const tagRows = await db.select({ tag: tags }).from(taskTags).innerJoin(tags, eq(taskTags.tagId, tags.id)).where(eq(taskTags.taskId, id));
       taskTagList = tagRows.map(r => r.tag);
     } catch (_) {}
 
     const deps = await this.getTaskDependencies(id);
     const dependents = await this.getTaskDependents(id);
-    const blockedBy = deps.some(d => d.status !== 'done');
 
     return {
       ...result.task,
@@ -557,7 +548,7 @@ export class DatabaseStorage implements IStorage {
       tags: taskTagList,
       dependencies: deps,
       dependents,
-      blockedBy,
+      blockedBy: deps.some(d => d.status !== 'done'),
     };
   }
 
@@ -567,11 +558,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTask(id: string, task: Partial<InsertTask>): Promise<Task> {
-    const [updatedTask] = await db
-      .update(tasks)
-      .set({ ...task, updatedAt: new Date() })
-      .where(eq(tasks.id, id))
-      .returning();
+    const [updatedTask] = await db.update(tasks).set({ ...task, updatedAt: new Date() }).where(eq(tasks.id, id)).returning();
     return updatedTask;
   }
 
@@ -590,11 +577,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSubtask(id: string, subtask: Partial<InsertSubtask>): Promise<Subtask> {
-    const [updated] = await db
-      .update(subtasks)
-      .set(subtask)
-      .where(eq(subtasks.id, id))
-      .returning();
+    const [updated] = await db.update(subtasks).set(subtask).where(eq(subtasks.id, id)).returning();
     return updated;
   }
 
@@ -634,32 +617,20 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(teams, eq(taskShares.teamId, teams.id))
         .leftJoin(assigneeAlias, eq(taskShares.assigneeId, assigneeAlias.id))
         .where(eq(taskShares.taskId, taskId));
-      return rows
-        .filter(r => r.team)
-        .map(r => ({ ...r.team!, assignee: r.assignee }));
-    } catch (e) {
-      return [];
-    }
+      return rows.filter(r => r.team).map(r => ({ ...r.team!, assignee: r.assignee }));
+    } catch (_) { return []; }
   }
 
   async addTaskShare(taskId: string, teamId: string): Promise<void> {
-    await db
-      .insert(taskShares)
-      .values({ taskId, teamId })
-      .onConflictDoNothing();
+    await db.insert(taskShares).values({ taskId, teamId }).onConflictDoNothing();
   }
 
   async removeTaskShare(taskId: string, teamId: string): Promise<void> {
-    await db
-      .delete(taskShares)
-      .where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
+    await db.delete(taskShares).where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
   }
 
   async setShareAssignee(taskId: string, teamId: string, assigneeId: string | null): Promise<void> {
-    await db
-      .update(taskShares)
-      .set({ assigneeId })
-      .where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
+    await db.update(taskShares).set({ assigneeId }).where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
   }
 
   // ── Tags ────────────────────────────────────────────────────
@@ -673,11 +644,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTaskTags(taskId: string): Promise<Tag[]> {
-    const rows = await db
-      .select({ tag: tags })
-      .from(taskTags)
-      .innerJoin(tags, eq(taskTags.tagId, tags.id))
-      .where(eq(taskTags.taskId, taskId));
+    const rows = await db.select({ tag: tags }).from(taskTags).innerJoin(tags, eq(taskTags.tagId, tags.id)).where(eq(taskTags.taskId, taskId));
     return rows.map(r => r.tag);
   }
 
@@ -686,9 +653,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async removeTaskTag(taskId: string, tagId: string): Promise<void> {
-    await db
-      .delete(taskTags)
-      .where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));
+    await db.delete(taskTags).where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));
   }
 
   // ── Dependencies ────────────────────────────────────────────
@@ -697,31 +662,15 @@ export class DatabaseStorage implements IStorage {
       const depTaskAlias = alias(tasks, 'depTask');
       const depAssigneeAlias = alias(users, 'depAssignee');
       const depTeamAlias = alias(teams, 'depTeam');
-
       const rows = await db
-        .select({
-          dep: depTaskAlias,
-          assignee: depAssigneeAlias,
-          team: depTeamAlias,
-        })
+        .select({ dep: depTaskAlias, assignee: depAssigneeAlias, team: depTeamAlias })
         .from(taskDependencies)
         .innerJoin(depTaskAlias, eq(taskDependencies.dependsOnTaskId, depTaskAlias.id))
         .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
         .leftJoin(depTeamAlias, eq(depTaskAlias.teamId, depTeamAlias.id))
         .where(eq(taskDependencies.taskId, taskId));
-
-      return rows.map(r => ({
-        id: r.dep.id,
-        title: r.dep.title,
-        status: r.dep.status,
-        dueDate: r.dep.dueDate,
-        ticketNumber: r.dep.ticketNumber,
-        assignee: r.assignee,
-        team: r.team,
-      }));
-    } catch (_) {
-      return [];
-    }
+      return rows.map(r => ({ id: r.dep.id, title: r.dep.title, status: r.dep.status, dueDate: r.dep.dueDate, ticketNumber: r.dep.ticketNumber, assignee: r.assignee, team: r.team }));
+    } catch (_) { return []; }
   }
 
   async getTaskDependents(taskId: string): Promise<TaskSummary[]> {
@@ -729,75 +678,247 @@ export class DatabaseStorage implements IStorage {
       const depTaskAlias = alias(tasks, 'depTask');
       const depAssigneeAlias = alias(users, 'depAssignee');
       const depTeamAlias = alias(teams, 'depTeam');
-
       const rows = await db
-        .select({
-          dep: depTaskAlias,
-          assignee: depAssigneeAlias,
-          team: depTeamAlias,
-        })
+        .select({ dep: depTaskAlias, assignee: depAssigneeAlias, team: depTeamAlias })
         .from(taskDependencies)
         .innerJoin(depTaskAlias, eq(taskDependencies.taskId, depTaskAlias.id))
         .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
         .leftJoin(depTeamAlias, eq(depTaskAlias.teamId, depTeamAlias.id))
         .where(eq(taskDependencies.dependsOnTaskId, taskId));
-
-      return rows.map(r => ({
-        id: r.dep.id,
-        title: r.dep.title,
-        status: r.dep.status,
-        dueDate: r.dep.dueDate,
-        ticketNumber: r.dep.ticketNumber,
-        assignee: r.assignee,
-        team: r.team,
-      }));
-    } catch (_) {
-      return [];
-    }
+      return rows.map(r => ({ id: r.dep.id, title: r.dep.title, status: r.dep.status, dueDate: r.dep.dueDate, ticketNumber: r.dep.ticketNumber, assignee: r.assignee, team: r.team }));
+    } catch (_) { return []; }
   }
 
   async addTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void> {
     if (taskId === dependsOnTaskId) throw new Error("Uma tarefa não pode depender de si mesma");
-    // Cycle check: if dependsOnTaskId already depends on taskId (directly or indirectly), reject
     const reverseDeps = await this.getTaskDependencies(dependsOnTaskId);
-    const wouldCreateCycle = reverseDeps.some(d => d.id === taskId);
-    if (wouldCreateCycle) throw new Error("Isso criaria uma dependência circular");
-    await db
-      .insert(taskDependencies)
-      .values({ taskId, dependsOnTaskId })
-      .onConflictDoNothing();
+    if (reverseDeps.some(d => d.id === taskId)) throw new Error("Isso criaria uma dependência circular");
+    await db.insert(taskDependencies).values({ taskId, dependsOnTaskId }).onConflictDoNothing();
   }
 
   async removeTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void> {
-    await db
-      .delete(taskDependencies)
-      .where(and(
-        eq(taskDependencies.taskId, taskId),
-        eq(taskDependencies.dependsOnTaskId, dependsOnTaskId)
-      ));
+    await db.delete(taskDependencies).where(and(eq(taskDependencies.taskId, taskId), eq(taskDependencies.dependsOnTaskId, dependsOnTaskId)));
   }
 
   // ── Dashboard stats ────────────────────────────────────────
-  async getDashboardStats(userId: string): Promise<{
-    totalTasks: number;
-    criticalTasks: number;
-    inProgressTasks: number;
-    completedTasks: number;
-  }> {
+  async getDashboardStats(userId: string): Promise<{ totalTasks: number; criticalTasks: number; inProgressTasks: number; completedTasks: number }> {
     const userCondition = or(eq(tasks.assigneeId, userId), eq(tasks.creatorId, userId));
-
     const count = (condition: any) =>
-      db.select({ count: sql<number>`count(*)` }).from(tasks).where(condition)
-        .then(res => Number(res[0]?.count || 0));
-
+      db.select({ count: sql<number>`count(*)` }).from(tasks).where(condition).then(res => Number(res[0]?.count || 0));
     const [totalTasks, criticalTasks, inProgressTasks, completedTasks] = await Promise.all([
       count(userCondition),
       count(and(userCondition, eq(tasks.urgency, "critical"), eq(tasks.importance, "high"))),
       count(and(userCondition, eq(tasks.status, "in_progress"))),
       count(and(userCondition, eq(tasks.status, "done"))),
     ]);
-
     return { totalTasks, criticalTasks, inProgressTasks, completedTasks };
+  }
+
+  async getTeamDashboardStats(teamId: string): Promise<{
+    byStatus: Record<string, number>;
+    byPriority: Record<string, number>;
+    byAssignee: { userId: string; name: string; count: number }[];
+    completionTrend: { date: string; count: number }[];
+  }> {
+    const teamTasks = await db.select().from(tasks).where(eq(tasks.teamId, teamId));
+
+    const byStatus: Record<string, number> = { todo: 0, in_progress: 0, review: 0, done: 0, renegotiated: 0 };
+    const byPriority: Record<string, number> = { low: 0, medium: 0, high: 0 };
+    const assigneeCounts = new Map<string, number>();
+
+    for (const t of teamTasks) {
+      byStatus[t.status] = (byStatus[t.status] || 0) + 1;
+      byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
+      if (t.assigneeId) assigneeCounts.set(t.assigneeId, (assigneeCounts.get(t.assigneeId) || 0) + 1);
+    }
+
+    const assigneeIds = Array.from(assigneeCounts.keys());
+    let byAssignee: { userId: string; name: string; count: number }[] = [];
+    if (assigneeIds.length > 0) {
+      const assigneeUsers = await db.select().from(users).where(inArray(users.id, assigneeIds));
+      byAssignee = assigneeUsers.map(u => ({
+        userId: u.id,
+        name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email,
+        count: assigneeCounts.get(u.id) || 0,
+      })).sort((a, b) => b.count - a.count).slice(0, 8);
+    }
+
+    // Completion trend: last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+    const completedTasks = teamTasks.filter(t => t.completedAt && new Date(t.completedAt) >= thirtyDaysAgo);
+    const trendMap = new Map<string, number>();
+    for (const t of completedTasks) {
+      if (t.completedAt) {
+        const dateStr = new Date(t.completedAt).toISOString().split('T')[0];
+        trendMap.set(dateStr, (trendMap.get(dateStr) || 0) + 1);
+      }
+    }
+    const completionTrend = Array.from(trendMap.entries()).map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date));
+
+    return { byStatus, byPriority, byAssignee, completionTrend };
+  }
+
+  // ── Team Events ────────────────────────────────────────────
+  async getTeamEvents(teamId: string): Promise<TeamEvent[]> {
+    return await db.select().from(teamEvents).where(eq(teamEvents.teamId, teamId)).orderBy(asc(teamEvents.startAt));
+  }
+
+  async createTeamEvent(data: InsertTeamEvent): Promise<TeamEvent> {
+    const [event] = await db.insert(teamEvents).values(data).returning();
+    return event;
+  }
+
+  async updateTeamEvent(id: string, data: Partial<InsertTeamEvent>): Promise<TeamEvent> {
+    const [updated] = await db.update(teamEvents).set(data).where(eq(teamEvents.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTeamEvent(id: string): Promise<void> {
+    await db.delete(teamEvents).where(eq(teamEvents.id, id));
+  }
+
+  // ── Skills ─────────────────────────────────────────────────
+  async getSkillDefinitions(): Promise<SkillDefinition[]> {
+    return await db.select().from(skillDefinitions).orderBy(skillDefinitions.type, skillDefinitions.name);
+  }
+
+  async createSkillDefinition(data: InsertSkillDefinition): Promise<SkillDefinition> {
+    const [skill] = await db.insert(skillDefinitions).values(data).returning();
+    return skill;
+  }
+
+  async deleteSkillDefinition(id: string): Promise<void> {
+    await db.delete(skillDefinitions).where(eq(skillDefinitions.id, id));
+  }
+
+  // ── Member Evaluations ─────────────────────────────────────
+  async getMemberEvaluations(teamId: string, userId: string): Promise<MemberEvaluationWithSkill[]> {
+    const rows = await db
+      .select({ eval: memberEvaluations, skill: skillDefinitions })
+      .from(memberEvaluations)
+      .innerJoin(skillDefinitions, eq(memberEvaluations.skillId, skillDefinitions.id))
+      .where(and(eq(memberEvaluations.teamId, teamId), eq(memberEvaluations.userId, userId)));
+    return rows.map(r => ({ ...r.eval, skill: r.skill }));
+  }
+
+  async upsertEvaluation(data: InsertMemberEvaluation): Promise<MemberEvaluation> {
+    const existing = await db
+      .select()
+      .from(memberEvaluations)
+      .where(and(
+        eq(memberEvaluations.teamId, data.teamId),
+        eq(memberEvaluations.userId, data.userId),
+        eq(memberEvaluations.skillId, data.skillId),
+      ));
+
+    if (existing.length > 0) {
+      const [updated] = await db
+        .update(memberEvaluations)
+        .set({ score: data.score, notes: data.notes, evaluatorId: data.evaluatorId, evaluatedAt: new Date() })
+        .where(eq(memberEvaluations.id, existing[0].id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(memberEvaluations).values(data).returning();
+    return created;
+  }
+
+  // ── Team Settings ──────────────────────────────────────────
+  async getTeamSettings(teamId: string): Promise<TeamSettings> {
+    const [settings] = await db.select().from(teamSettings).where(eq(teamSettings.teamId, teamId));
+    return settings ?? { teamId, dashboardPublic: false };
+  }
+
+  async upsertTeamSettings(teamId: string, data: Partial<TeamSettings>): Promise<TeamSettings> {
+    const [result] = await db
+      .insert(teamSettings)
+      .values({ teamId, ...data })
+      .onConflictDoUpdate({ target: teamSettings.teamId, set: data })
+      .returning();
+    return result;
+  }
+
+  // ── Task Templates ─────────────────────────────────────────
+  async getTaskTemplates(teamId?: string): Promise<TaskTemplate[]> {
+    const conditions = teamId
+      ? or(eq(taskTemplates.teamId, teamId), sql`${taskTemplates.teamId} IS NULL`)
+      : undefined;
+    return await db.select().from(taskTemplates).where(conditions).orderBy(taskTemplates.title);
+  }
+
+  async createTaskTemplate(data: InsertTaskTemplate): Promise<TaskTemplate> {
+    const [template] = await db.insert(taskTemplates).values(data).returning();
+    return template;
+  }
+
+  async deleteTaskTemplate(id: string): Promise<void> {
+    await db.delete(taskTemplates).where(eq(taskTemplates.id, id));
+  }
+
+  // ── Notifications ──────────────────────────────────────────
+  async getUserNotifications(userId: string): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50);
+  }
+
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [notif] = await db.insert(notifications).values(data).returning();
+    return notif;
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ read: true }).where(and(eq(notifications.userId, userId), eq(notifications.read, false)));
+  }
+
+  // ── Onboarding ─────────────────────────────────────────────
+  async getOnboardingItems(teamId: string): Promise<OnboardingItem[]> {
+    return await db.select().from(onboardingItems).where(eq(onboardingItems.teamId, teamId)).orderBy(asc(onboardingItems.order));
+  }
+
+  async createOnboardingItem(data: InsertOnboardingItem): Promise<OnboardingItem> {
+    const [item] = await db.insert(onboardingItems).values(data).returning();
+    return item;
+  }
+
+  async deleteOnboardingItem(id: string): Promise<void> {
+    await db.delete(onboardingItems).where(eq(onboardingItems.id, id));
+  }
+
+  async getOnboardingProgress(teamId: string): Promise<OnboardingItemWithProgress[]> {
+    const items = await this.getOnboardingItems(teamId);
+    if (items.length === 0) return [];
+    const itemIds = items.map(i => i.id);
+    const progressRows = await db
+      .select()
+      .from(onboardingProgress)
+      .where(inArray(onboardingProgress.itemId, itemIds));
+    const progressByItem = new Map<string, string[]>();
+    for (const p of progressRows) {
+      if (!progressByItem.has(p.itemId)) progressByItem.set(p.itemId, []);
+      progressByItem.get(p.itemId)!.push(p.userId);
+    }
+    return items.map(item => ({ ...item, completedBy: progressByItem.get(item.id) || [] }));
+  }
+
+  async toggleOnboardingProgress(itemId: string, userId: string): Promise<void> {
+    const [existing] = await db
+      .select()
+      .from(onboardingProgress)
+      .where(and(eq(onboardingProgress.itemId, itemId), eq(onboardingProgress.userId, userId)));
+    if (existing) {
+      await db.delete(onboardingProgress).where(and(eq(onboardingProgress.itemId, itemId), eq(onboardingProgress.userId, userId)));
+    } else {
+      await db.insert(onboardingProgress).values({ itemId, userId }).onConflictDoNothing();
+    }
   }
 }
 

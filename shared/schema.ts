@@ -47,10 +47,11 @@ export const teams = pgTable("teams", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Many-to-many: users <-> teams
+// Many-to-many: users <-> teams (with isLead flag)
 export const teamMembers = pgTable("team_members", {
   teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  isLead: boolean("is_lead").default(false),
   joinedAt: timestamp("joined_at").defaultNow(),
 }, (table) => [primaryKey({ columns: [table.teamId, table.userId] })]);
 
@@ -120,8 +121,6 @@ export const taskAuditLog = pgTable("task_audit_log", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Task sharing: a card can be shared with multiple teams (for shared merit)
-// Each share can have a designated assignee from the secondary team
 export const taskShares = pgTable("task_shares", {
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
@@ -129,7 +128,6 @@ export const taskShares = pgTable("task_shares", {
   sharedAt: timestamp("shared_at").defaultNow(),
 }, (table) => [primaryKey({ columns: [table.taskId, table.teamId] })]);
 
-// Color labels (tags) for tasks
 export const tags = pgTable("tags", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
@@ -137,32 +135,119 @@ export const tags = pgTable("tags", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Many-to-many: tasks <-> tags
 export const taskTags = pgTable("task_tags", {
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   tagId: varchar("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
 }, (table) => [primaryKey({ columns: [table.taskId, table.tagId] })]);
 
-// Task dependencies: taskId depends on / is blocked by dependsOnTaskId
 export const taskDependencies = pgTable("task_dependencies", {
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   dependsOnTaskId: varchar("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [primaryKey({ columns: [table.taskId, table.dependsOnTaskId] })]);
 
-// Relations
+// ─── NEW TABLES ────────────────────────────────────────────────────────────
+
+// Team events (calendar)
+export const teamEvents = pgTable("team_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  location: varchar("location"),
+  startAt: timestamp("start_at").notNull(),
+  endAt: timestamp("end_at"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Skill definitions (technical or behavioral)
+export const skillDefinitions = pgTable("skill_definitions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  type: varchar("type").notNull().default("technical"), // 'technical' | 'behavioral'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Member performance evaluations
+export const memberEvaluations = pgTable("member_evaluations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  evaluatorId: varchar("evaluator_id").notNull().references(() => users.id),
+  skillId: varchar("skill_id").notNull().references(() => skillDefinitions.id, { onDelete: "cascade" }),
+  score: integer("score").notNull().default(3), // 1-5
+  notes: text("notes"),
+  evaluatedAt: timestamp("evaluated_at").defaultNow(),
+});
+
+// Per-team settings
+export const teamSettings = pgTable("team_settings", {
+  teamId: varchar("team_id").primaryKey().references(() => teams.id, { onDelete: "cascade" }),
+  dashboardPublic: boolean("dashboard_public").default(false),
+});
+
+// Task templates
+export const taskTemplates = pgTable("task_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  priority: varchar("priority").default("medium"),
+  urgency: varchar("urgency").default("medium"),
+  importance: varchar("importance").default("medium"),
+  complexity: varchar("complexity").default("medium"),
+  teamId: varchar("team_id").references(() => teams.id, { onDelete: "cascade" }),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Internal notifications
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  type: varchar("type").notNull().default("info"), // 'info' | 'warning' | 'task' | 'announcement'
+  read: boolean("read").default(false),
+  taskId: varchar("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Onboarding checklist items per team
+export const onboardingItems = pgTable("onboarding_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Per-user onboarding progress
+export const onboardingProgress = pgTable("onboarding_progress", {
+  itemId: varchar("item_id").notNull().references(() => onboardingItems.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  completedAt: timestamp("completed_at").defaultNow(),
+}, (table) => [primaryKey({ columns: [table.itemId, table.userId] })]);
+
+// ─── RELATIONS ─────────────────────────────────────────────────────────────
+
 export const usersRelations = relations(users, ({ many }) => ({
   teamMemberships: many(teamMembers),
   assignedTasks: many(tasks, { relationName: "assignedTasks" }),
   createdTasks: many(tasks, { relationName: "createdTasks" }),
   subtasks: many(subtasks),
   comments: many(taskComments),
+  notifications: many(notifications),
 }));
 
-export const teamsRelations = relations(teams, ({ many }) => ({
+export const teamsRelations = relations(teams, ({ many, one }) => ({
   members: many(teamMembers),
   boards: many(boards),
   tasks: many(tasks),
+  events: many(teamEvents),
+  settings: one(teamSettings, { fields: [teams.id], references: [teamSettings.teamId] }),
+  onboardingItems: many(onboardingItems),
 }));
 
 export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
@@ -176,16 +261,8 @@ export const boardsRelations = relations(boards, ({ one, many }) => ({
 }));
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
-  assignee: one(users, {
-    fields: [tasks.assigneeId],
-    references: [users.id],
-    relationName: "assignedTasks",
-  }),
-  creator: one(users, {
-    fields: [tasks.creatorId],
-    references: [users.id],
-    relationName: "createdTasks",
-  }),
+  assignee: one(users, { fields: [tasks.assigneeId], references: [users.id], relationName: "assignedTasks" }),
+  creator: one(users, { fields: [tasks.creatorId], references: [users.id], relationName: "createdTasks" }),
   team: one(teams, { fields: [tasks.teamId], references: [teams.id] }),
   board: one(boards, { fields: [tasks.boardId], references: [boards.id] }),
   subtasks: many(subtasks),
@@ -230,7 +307,44 @@ export const taskDependenciesRelations = relations(taskDependencies, ({ one }) =
   dependsOn: one(tasks, { fields: [taskDependencies.dependsOnTaskId], references: [tasks.id], relationName: "taskDependents" }),
 }));
 
-// Types
+export const teamEventsRelations = relations(teamEvents, ({ one }) => ({
+  team: one(teams, { fields: [teamEvents.teamId], references: [teams.id] }),
+  creator: one(users, { fields: [teamEvents.createdBy], references: [users.id] }),
+}));
+
+export const skillDefinitionsRelations = relations(skillDefinitions, ({ many }) => ({
+  evaluations: many(memberEvaluations),
+}));
+
+export const memberEvaluationsRelations = relations(memberEvaluations, ({ one }) => ({
+  team: one(teams, { fields: [memberEvaluations.teamId], references: [teams.id] }),
+  user: one(users, { fields: [memberEvaluations.userId], references: [users.id] }),
+  evaluator: one(users, { fields: [memberEvaluations.evaluatorId], references: [users.id] }),
+  skill: one(skillDefinitions, { fields: [memberEvaluations.skillId], references: [skillDefinitions.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+  task: one(tasks, { fields: [notifications.taskId], references: [tasks.id] }),
+}));
+
+export const onboardingItemsRelations = relations(onboardingItems, ({ one, many }) => ({
+  team: one(teams, { fields: [onboardingItems.teamId], references: [teams.id] }),
+  progress: many(onboardingProgress),
+}));
+
+export const onboardingProgressRelations = relations(onboardingProgress, ({ one }) => ({
+  item: one(onboardingItems, { fields: [onboardingProgress.itemId], references: [onboardingItems.id] }),
+  user: one(users, { fields: [onboardingProgress.userId], references: [users.id] }),
+}));
+
+export const taskTemplatesRelations = relations(taskTemplates, ({ one }) => ({
+  team: one(teams, { fields: [taskTemplates.teamId], references: [teams.id] }),
+  creator: one(users, { fields: [taskTemplates.createdBy], references: [users.id] }),
+}));
+
+// ─── TYPES ─────────────────────────────────────────────────────────────────
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
@@ -272,6 +386,39 @@ export const insertTagSchema = createInsertSchema(tags).omit({ id: true, created
 
 export type TaskDependency = typeof taskDependencies.$inferSelect;
 
+export type TeamMember = typeof teamMembers.$inferSelect;
+
+export type TeamEvent = typeof teamEvents.$inferSelect;
+export type InsertTeamEvent = typeof teamEvents.$inferInsert;
+export const insertTeamEventSchema = createInsertSchema(teamEvents).omit({ id: true, createdAt: true }).extend({
+  startAt: z.coerce.date(),
+  endAt: z.union([z.coerce.date(), z.null()]).optional(),
+});
+
+export type SkillDefinition = typeof skillDefinitions.$inferSelect;
+export type InsertSkillDefinition = typeof skillDefinitions.$inferInsert;
+export const insertSkillDefinitionSchema = createInsertSchema(skillDefinitions).omit({ id: true, createdAt: true });
+
+export type MemberEvaluation = typeof memberEvaluations.$inferSelect;
+export type InsertMemberEvaluation = typeof memberEvaluations.$inferInsert;
+export const insertMemberEvaluationSchema = createInsertSchema(memberEvaluations).omit({ id: true, evaluatedAt: true });
+
+export type TeamSettings = typeof teamSettings.$inferSelect;
+
+export type TaskTemplate = typeof taskTemplates.$inferSelect;
+export type InsertTaskTemplate = typeof taskTemplates.$inferInsert;
+export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).omit({ id: true, createdAt: true });
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+
+export type OnboardingItem = typeof onboardingItems.$inferSelect;
+export type InsertOnboardingItem = typeof onboardingItems.$inferInsert;
+export const insertOnboardingItemSchema = createInsertSchema(onboardingItems).omit({ id: true, createdAt: true });
+
+export type OnboardingProgress = typeof onboardingProgress.$inferSelect;
+
 // Shared team with optional assignee
 export type SharedTeamWithAssignee = Team & { assignee?: User | null };
 
@@ -298,4 +445,14 @@ export type TaskWithDetails = Task & {
 };
 
 export type BoardWithTeam = Board & { team: Team };
-export type TeamWithMembers = Team & { members: User[]; boards: Board[] };
+
+export type TeamMemberWithUser = TeamMember & { user: User };
+export type TeamWithMembers = Team & { members: (User & { isLead?: boolean })[]; boards: Board[] };
+
+export type MemberEvaluationWithSkill = MemberEvaluation & { skill: SkillDefinition };
+
+export type OnboardingItemWithProgress = OnboardingItem & {
+  completedBy: string[];
+};
+
+export type NotificationWithTask = Notification & { task?: Task | null };

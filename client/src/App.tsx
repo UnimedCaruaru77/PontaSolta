@@ -30,11 +30,15 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/dashboard" component={Home} />
+          <Route path="/analytics" component={Home} />
           <Route path="/kanban" component={Home} />
           <Route path="/tasks" component={Home} />
           <Route path="/team" component={Home} />
           <Route path="/users" component={Home} />
           <Route path="/equipes" component={Home} />
+          <Route path="/calendar" component={Home} />
+          <Route path="/hub" component={Home} />
+          <Route path="/performance" component={Home} />
         </>
       )}
       <Route component={NotFound} />

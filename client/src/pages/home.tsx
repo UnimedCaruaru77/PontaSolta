@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
 import SidebarNav from "@/components/ui/sidebar-nav";
 import DashboardStats from "@/components/dashboard-stats";
@@ -13,6 +13,19 @@ import Team from "@/pages/team";
 import Users from "@/pages/users";
 import TeamsPage from "@/pages/teams";
 import TaskModal from "@/components/task-modal";
+
+const DashboardPage = lazy(() => import("@/pages/dashboard"));
+const PerformancePage = lazy(() => import("@/pages/performance"));
+const CalendarPage = lazy(() => import("@/pages/calendar"));
+const HubPage = lazy(() => import("@/pages/hub"));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-40">
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+    </div>
+  );
+}
 
 export default function Home() {
   const { toast } = useToast();
@@ -57,6 +70,14 @@ export default function Home() {
         return <Users />;
       case 'equipes':
         return <TeamsPage />;
+      case 'analytics':
+        return <Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>;
+      case 'performance':
+        return <Suspense fallback={<PageLoader />}><PerformancePage /></Suspense>;
+      case 'calendar':
+        return <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense>;
+      case 'hub':
+        return <Suspense fallback={<PageLoader />}><HubPage /></Suspense>;
       default:
         return (
           <div className="space-y-6">
@@ -73,20 +94,28 @@ export default function Home() {
 
   const titles: Record<string, string> = {
     dashboard: 'Dashboard',
+    analytics: 'Analytics',
     kanban: 'Kanban',
     tasks: 'Minhas Tarefas',
     team: 'Equipe',
     users: 'Usuários',
     equipes: 'Equipes',
+    calendar: 'Calendário',
+    hub: 'Hub da Equipe',
+    performance: 'Desempenho',
   };
 
   const descriptions: Record<string, string> = {
     dashboard: 'Gerencie suas tarefas e equipe',
+    analytics: 'Gráficos e métricas por equipe',
     kanban: 'Visualize e organize tarefas por equipe e quadro',
     tasks: 'Visualize e gerencie suas tarefas',
     team: 'Acompanhe o desempenho da sua equipe',
     users: 'Gerencie usuários e permissões',
     equipes: 'Crie e gerencie equipes, membros e quadros Kanban',
+    calendar: 'Eventos e compromissos da equipe',
+    hub: 'Membros, onboarding e comunicados da equipe',
+    performance: 'Avaliação de competências e desempenho',
   };
 
   return (

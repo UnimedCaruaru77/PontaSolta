@@ -1,123 +1,6 @@
 # Overview
 
-PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with Kanban boards (Teams > Boards > Cards), team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
-
-## Recent Changes (v3.4.0 - March 2026)
-
-### Novas Features
-- **Múltiplos Responsáveis via Compartilhamento**: `task_shares` agora tem coluna `assignee_id`. Para cada equipe compartilhada, é possível designar um membro responsável. No modal, cada equipe compartilhada tem um dropdown que filtra os membros dessa equipe. Os avatares dos responsáveis aparecem no card do Kanban.
-- **Dependências entre Tarefas**: Nova tabela `task_dependencies`. No modal, seção "Dependências" com busca por título/chamado, lista de bloqueadores e lista de tarefas que serão desbloqueadas. Cards com dependências pendentes exibem ícone de cadeado (Lock). Validação de ciclos.
-- **Status Repactuado**: Novo valor `renegotiated` no enum `status`. Ao alterar o prazo de uma tarefa atrasada, o status vira "Repactuado" automaticamente com contador (`renegotiation_count`) e data (`last_renegotiatedAt`). Badge especial no card com contador de repactuações e indicador "Repactuado · Atrasado" se atrasar novamente.
-- **DatePicker Melhorado**: Substituídos os `<input type="date">` da seção Prazos por componente `DatePicker` com calendário visual (pt-BR), campo de digitação manual (dd/mm/aaaa) e botão de limpar.
-
-### Schema
-- `task_shares`: nova coluna `assignee_id` (nullable FK → users)
-- `tasks`: novas colunas `renegotiation_count integer DEFAULT 0` e `last_renegotiated_at timestamp`
-- `statusEnum`: novo valor `renegotiated`
-- Nova tabela `task_dependencies` (taskId, dependsOnTaskId, PK composta)
-
-### Novos Endpoints
-- `PATCH /api/tasks/:id/shares/:teamId` — define `assigneeId` da equipe no compartilhamento
-- `GET /api/tasks/:id/dependencies` — lista dependências
-- `POST /api/tasks/:id/dependencies` — body `{ dependsOnTaskId }`, valida ciclos
-- `DELETE /api/tasks/:id/dependencies/:dependsOnTaskId` — remove dependência
-
-### Tipos
-- `SharedTeamWithAssignee = Team & { assignee?: User | null }` — equipe compartilhada com responsável
-- `TaskSummary` — resumo de tarefa para dependências
-- `TaskWithDetails` ampliado: `dependencies`, `dependents`, `blockedBy`
-
-## Recent Changes (v3.3.0 - March 2026)
-
-### Novas Features
-- **Busca Global**: Botão "Buscar tarefa..." na sidebar abre dialog com busca em tempo real. Pesquisa por título, número de chamado ou responsável. Resultados mostram status, equipe, prazo. Clicar no resultado abre o modal de detalhes.
-- **Filtros Avançados no Kanban**: Dois novos dropdowns na barra de filtros — Prioridade (Alta/Média/Baixa) e Responsável (lista de usuários). Filtros aplicados no frontend sobre os cards já carregados.
-- **Foto de Perfil no Card**: O card do Kanban agora exibe a foto de perfil do responsável (Google OAuth), com fallback para iniciais.
-- **Etiquetas Coloridas (Tags)**: Cards podem ter etiquetas coloridas. Admin/gestor cria etiquetas com nome + cor customizada. Qualquer usuário adiciona/remove etiquetas nos cards. Badges coloridos aparecem nos cards do Kanban e no modal de detalhes.
-- **Indicador de SLA**: Cards com número de chamado + prazo exibem barra de progresso colorida (verde/amarelo/vermelho) indicando % do tempo restante. Painel completo no modal de detalhes na seção Prazos.
-
-### Schema
-- Nova tabela `tags` (id, name, color, createdAt) — etiquetas globais reutilizáveis
-- Nova tabela `task_tags` (taskId, tagId) — many-to-many tasks ↔ tags
-- `TaskWithDetails` agora inclui campo `tags?: Tag[]`
-
-### Novos Endpoints
-- `GET /api/tags` — lista todas as etiquetas
-- `POST /api/tags` — cria etiqueta (admin/gestor)
-- `POST /api/tasks/:id/tags` — adiciona etiqueta a tarefa
-- `DELETE /api/tasks/:id/tags/:tagId` — remove etiqueta de tarefa
-
-### Performance
-- `hydrateTaskDetails` refatorado para batch queries (elimina N+1 para subtasks, comentários, shares e tags)
-
-## Recent Changes (v3.2.0 - March 2026)
-
-### Controle de Visibilidade por Papel
-- **Membros veem só suas equipes**: `GET /api/teams` filtra automaticamente — membro recebe apenas as equipes em que é cadastrado; admin/gestor veem todas.
-- **Membros veem só tasks das suas equipes**: `GET /api/tasks` restringe automaticamente para membros — retorna apenas tasks cujo `teamId` está nas equipes do membro, mais tasks onde o membro é assignee ou creator.
-- **Proteção de boards por equipe**: `GET /api/teams/:id/boards` retorna `[]` se o membro não pertencer àquela equipe.
-- **Novos métodos no storage**: `getTeamsByUser(userId)`, `getTeamIdsByUser(userId)` e suporte a filtro `teamIds` em `getTasks()`.
-
-## Recent Changes (v3.1.0 - March 2026)
-
-### Bug Fixes
-- **PATCH tarefa (500)**: Corrigido erro ao marcar tarefa como concluída. O problema era que `completedAt: new Date().toISOString()` chegava como string ao Drizzle, que espera `Date`. Adicionado `insertTaskSchema.partial().parse(req.body)` na rota PATCH para coerção correta. O schema também foi atualizado para aceitar `null` nos campos de data (necessário ao reabrir tarefa).
-- **Botão "Novo Usuário"**: Implementado dialog completo para cadastro de usuários com campos email, nome, sobrenome e papel.
-
-### Novas Features
-- **Transferência de Equipe**: No modal de detalhes do card, novo seletor "Equipe Responsável" permite mover o card para outra equipe. Ao transferir, o responsável e o quadro são limpos automaticamente (mantendo todos os demais dados).
-- **Compartilhamento de Card**: Cards podem ser compartilhados com múltiplas equipes para registrar mérito coletivo. Nova seção "Compartilhar com Equipes" no modal mostra badges das equipes com opção de remover e selector para adicionar novas.
-- **Novo endpoint POST /api/users**: Criação de usuários pelo painel (admin/gestor). Ao criar, o email é pré-cadastrado e quando o usuário fizer login via Google, seu acesso será concedido automaticamente.
-- **Novos endpoints PATCH /api/users/:id**: Edição de dados de usuários.
-- **Endpoints de compartilhamento**: GET/POST/DELETE /api/tasks/:id/shares para gerenciar compartilhamentos.
-
-### Schema
-- Nova tabela `task_shares` (taskId, teamId, sharedAt) — many-to-many para cards compartilhados entre equipes
-- `TaskWithDetails` agora inclui campo `sharedTeams: Team[]`
-- `insertUserSchema` exportado do schema para criação de usuários
-
-## Recent Changes (v3.0.0 - March 2026)
-
-### Teams > Boards > Cards Hierarchy
-1. **New `boards` table** — Boards belong to a Team. Tasks belong to a Board (optional).
-2. **New `team_members` junction table** — Many-to-many relationship between users and teams. Users can belong to multiple teams.
-3. **`ticketNumber` field on tasks** — Optional field to link tasks to helpdesk tickets (e.g., INC-001).
-4. **`boardId` field on tasks** — Tasks can now be scoped to a specific Kanban board.
-
-### New Frontend Pages & Features
-- **Equipes page** (`/equipes`): Full team management (CRUD), member management (add/remove), board management (create/delete boards per team), visible to all users, admin-only destructive actions.
-- **Kanban Board with Board Selector**: Team + Board selector bar at the top of the Kanban view. Filtering by team and/or board updates the task list in real time.
-- **Task Modal (Nova Tarefa)**: Added `N° Chamado` field, Team selector, Board selector (depends on team), and Responsável dropdown now loads actual users.
-- **Task Details Modal**: Fully editable — status, priority, urgency, complexity, assignee (dropdown with all users), quick "Marcar como Concluído" / "Reabrir Tarefa" buttons, shows board and team badges.
-- **Sidebar navigation**: Added "Equipes" nav item with Network icon.
-
-### API Endpoints Added
-- `GET /api/users` — list all users
-- `GET/POST/PATCH/DELETE /api/teams` — full CRUD for teams
-- `POST /api/teams/:id/members` + `DELETE /api/teams/:id/members/:userId` — manage members
-- `GET /api/teams/:id/members` — list members of a team
-- `GET /api/teams/:id/boards` — list boards for a team
-- `GET/POST/PATCH/DELETE /api/boards` — full CRUD for boards
-- `GET /api/tasks?boardId=xxx` — filter tasks by board
-
-## Previous Changes (v2.5.0 - March 2026)
-
-### Authentication System - Google OAuth Only
-- Login exclusively via Google corporate account
-- Admins auto-assigned by email: `luciano.filho@unimedcaruaru.com.br`, `luciano.filho4@unimedcaruaru.com.br`
-- Session cookies: httpOnly, secure, sameSite: lax
-- PostgreSQL session store
-
-### Callback URL do Google OAuth
-- Desenvolvimento: `https://<replit-dev-domain>/api/auth/google/callback`
-- Produção: `https://<app>.replit.app/api/auth/google/callback`
-- URL detectada automaticamente via `REPLIT_DOMAINS` env var
-
-### Secrets Necessários
-- `GOOGLE_CLIENT_ID` — Client ID do Google Cloud Console
-- `GOOGLE_CLIENT_SECRET` — Client Secret do Google Cloud Console
-- `SESSION_SECRET` — Chave de sessão (já configurado)
-- `DATABASE_URL` — PostgreSQL (já configurado)
+PONTA SOLTA is a futuristic task management system designed to streamline task tracking, team collaboration, and user management. It features Kanban boards, priority-based task organization, and a cyberpunk-inspired user interface. The project aims to provide comprehensive tools for efficient task management within a dynamic team environment, enhancing productivity and communication.
 
 # User Preferences
 
@@ -126,48 +9,85 @@ Preferred communication style: Simple, everyday language. Portuguese (Brazilian)
 # System Architecture
 
 ## Frontend Architecture
-- **Framework**: React 18 with TypeScript using Vite as the build tool
-- **Routing**: Wouter for client-side routing
-- **UI Components**: Shadcn/ui component library with Radix UI primitives
-- **Styling**: Tailwind CSS with custom CSS variables for theming
-- **State Management**: TanStack React Query for server state management
+- **Framework**: React 18 with TypeScript and Vite
+- **Routing**: Wouter
+- **UI Components**: Shadcn/ui with Radix UI primitives
+- **Styling**: Tailwind CSS with custom CSS variables
+- **State Management**: TanStack React Query
 - **Forms**: React Hook Form with Zod validation
 
 ## Backend Architecture
-- **Runtime**: Node.js with Express.js server framework
-- **API**: RESTful API with CRUD operations for tasks, teams, boards, and users
-- **Authentication**: Google OAuth via Passport.js + passport-google-oauth20
+- **Runtime**: Node.js with Express.js
+- **API**: RESTful API
+- **Authentication**: Google OAuth via Passport.js
 - **Session Management**: Express sessions with PostgreSQL store
 
 ## Database Design
-- **ORM**: Drizzle ORM with PostgreSQL dialect
-- **Database**: PostgreSQL (configured via Neon serverless)
-- **Schema**:
-  - `users` — with Google OAuth fields, role-based access
-  - `teams` — organization units
-  - `team_members` — many-to-many junction (users ↔ teams)
-  - `boards` — kanban boards belonging to a team
-  - `tasks` — with priority, urgency, importance, complexity, ticketNumber, boardId
-  - `subtasks` — breaking down larger tasks
-  - `task_comments` — collaboration on tasks
-  - `task_audit_log` — automatic change history
-  - `sessions` — authentication state
+- **ORM**: Drizzle ORM with PostgreSQL
+- **Database**: PostgreSQL (Neon serverless)
+- **Schema Highlights**:
+  - `users`: With Google OAuth fields and role-based access.
+  - `teams`: Organizational units.
+  - `team_members`: Many-to-many relationship between users and teams, including `is_lead` flag.
+  - `boards`: Kanban boards belonging to a team.
+  - `tasks`: With priority, urgency, importance, complexity, `ticketNumber`, `boardId`, `renegotiation_count`, and `last_renegotiated_at`.
+  - `subtasks`: For breaking down larger tasks.
+  - `task_comments`: For collaboration.
+  - `task_audit_log`: Automatic change history.
+  - `task_shares`: For sharing tasks across multiple teams and assigning specific members per share.
+  - `task_dependencies`: To manage task prerequisites and blockages.
+  - `tags`: Global reusable colored labels for tasks.
+  - `task_tags`: Many-to-many relationship for tasks and tags.
+  - `team_events`: For team calendar events.
+  - `skill_definitions`: For defining skills in performance evaluations.
+  - `member_evaluations`: To store performance scores for team members.
+  - `team_settings`: To configure team-specific settings like dashboard visibility.
+  - `task_templates`: Reusable templates for task creation.
+  - `notifications`: Internal system notifications.
+  - `onboarding_items`: Checklist items for team onboarding.
+  - `onboarding_progress`: Tracks individual member's onboarding progress.
+  - `sessions`: For authentication state.
 
 ## Key Features
-- **Task Management**: Create, update, delete tasks with ticketNumber field and board assignment
-- **Teams > Boards > Cards**: Full hierarchy with member management
-- **Kanban Board**: Drag-and-drop with team/board filtering
-- **Team Collaboration**: Multi-user support, any user can be in multiple teams
-- **Priority System**: Four-dimensional priority classification (priority, urgency, importance, complexity)
-- **Dashboard**: Real-time statistics and deadline notifications
-- **User Management**: Role-based access (admin, manager, member)
-- **Task History**: Automatic audit log of all changes
-- **Comments**: Per-task commenting system
+- **Task Management**: CRUD operations with ticket number, board assignment, and detailed priority classification (priority, urgency, importance, complexity).
+- **Team Hierarchy**: Teams > Boards > Cards structure with comprehensive team and member management.
+- **Kanban Board**: Interactive board with drag-and-drop functionality, real-time filtering by team/board, and assignee photos.
+- **Advanced Task Features**:
+  - **Task Sharing**: Share tasks across multiple teams with specific assignees per team.
+  - **Task Dependencies**: Define and manage task prerequisites, preventing work on blocked tasks.
+  - **SLA Indicator**: Visual progress bar for task deadlines based on `ticketNumber` and due date.
+  - **Status Renegotiation**: Automatic "Repactuado" status for overdue tasks with tracking.
+  - **Task Templates**: Create and apply predefined task structures.
+- **Collaboration & Communication**:
+  - **Global Search**: Real-time task search by title, ticket number, or assignee.
+  - **Task Comments**: Integrated commenting system.
+  - **Internal Notifications**: Bell icon with unread count and activity alerts.
+- **Team & User Management**:
+  - **Role-Based Access Control**: Admin, manager, and member roles with granular permissions.
+  - **Team Leader Role**: `is_lead` flag for team leadership functions.
+  - **User Management**: CRUD for users with Google OAuth integration.
+  - **Onboarding Checklists**: Customizable onboarding process per team.
+- **Reporting & Analytics**:
+  - **Performance Evaluation**: Radar chart for technical and behavioral skills.
+  - **Dashboard Analytics**: Graphical representation of tasks by status, priority, and time evolution with CSV export.
+  - **Event Calendar**: Monthly calendar view for team events with CRUD operations for leads/admins.
+- **UI/UX**: Cyberpunk-inspired dark theme with neon accents, improved DatePicker components, and photo display for task assignees.
 
-## Routes
-- `/` — Dashboard
-- `/kanban` — Kanban Board (supports ?teamId=&boardId= query params)
-- `/tasks` — My Tasks
-- `/equipes` — Teams Management
-- `/team` — Team stats
-- `/users` — User management
+## Core Routes
+- `/`: Dashboard
+- `/kanban`: Kanban Board (with `teamId` and `boardId` filters)
+- `/tasks`: My Tasks
+- `/equipes`: Teams Management
+- `/team`: Team statistics
+- `/users`: User management
+- `/analytics`: Dashboard for graphical analytics and CSV export
+- `/performance`: Performance evaluation page
+- `/calendar`: Event calendar
+- `/hub`: Team hub with members, announcements, and onboarding checklists
+
+# External Dependencies
+
+- **Google Cloud Platform**: For Google OAuth (Google Client ID, Google Client Secret).
+- **Neon**: Serverless PostgreSQL database hosting.
+- **Passport.js**: For authentication middleware.
+- **React-day-picker**: For calendar component functionality.
