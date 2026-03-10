@@ -2,6 +2,31 @@
 
 PONTA SOLTA is a futuristic task management system built with a modern full-stack architecture. The application provides comprehensive task tracking capabilities with Kanban boards (Teams > Boards > Cards), team collaboration, user management, and priority-based task organization. It uses a cyberpunk-inspired design theme with neon accents and a dark interface.
 
+## Recent Changes (v3.4.0 - March 2026)
+
+### Novas Features
+- **Múltiplos Responsáveis via Compartilhamento**: `task_shares` agora tem coluna `assignee_id`. Para cada equipe compartilhada, é possível designar um membro responsável. No modal, cada equipe compartilhada tem um dropdown que filtra os membros dessa equipe. Os avatares dos responsáveis aparecem no card do Kanban.
+- **Dependências entre Tarefas**: Nova tabela `task_dependencies`. No modal, seção "Dependências" com busca por título/chamado, lista de bloqueadores e lista de tarefas que serão desbloqueadas. Cards com dependências pendentes exibem ícone de cadeado (Lock). Validação de ciclos.
+- **Status Repactuado**: Novo valor `renegotiated` no enum `status`. Ao alterar o prazo de uma tarefa atrasada, o status vira "Repactuado" automaticamente com contador (`renegotiation_count`) e data (`last_renegotiatedAt`). Badge especial no card com contador de repactuações e indicador "Repactuado · Atrasado" se atrasar novamente.
+- **DatePicker Melhorado**: Substituídos os `<input type="date">` da seção Prazos por componente `DatePicker` com calendário visual (pt-BR), campo de digitação manual (dd/mm/aaaa) e botão de limpar.
+
+### Schema
+- `task_shares`: nova coluna `assignee_id` (nullable FK → users)
+- `tasks`: novas colunas `renegotiation_count integer DEFAULT 0` e `last_renegotiated_at timestamp`
+- `statusEnum`: novo valor `renegotiated`
+- Nova tabela `task_dependencies` (taskId, dependsOnTaskId, PK composta)
+
+### Novos Endpoints
+- `PATCH /api/tasks/:id/shares/:teamId` — define `assigneeId` da equipe no compartilhamento
+- `GET /api/tasks/:id/dependencies` — lista dependências
+- `POST /api/tasks/:id/dependencies` — body `{ dependsOnTaskId }`, valida ciclos
+- `DELETE /api/tasks/:id/dependencies/:dependsOnTaskId` — remove dependência
+
+### Tipos
+- `SharedTeamWithAssignee = Team & { assignee?: User | null }` — equipe compartilhada com responsável
+- `TaskSummary` — resumo de tarefa para dependências
+- `TaskWithDetails` ampliado: `dependencies`, `dependents`, `blockedBy`
+
 ## Recent Changes (v3.3.0 - March 2026)
 
 ### Novas Features

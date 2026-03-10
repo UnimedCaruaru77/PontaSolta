@@ -5,6 +5,7 @@ import {
   boards,
   tasks,
   taskShares,
+  taskDependencies,
   subtasks,
   taskComments,
   taskAuditLog,
@@ -28,9 +29,11 @@ import {
   type TeamWithMembers,
   type Tag,
   type InsertTag,
+  type SharedTeamWithAssignee,
+  type TaskSummary,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 export interface IStorage {
@@ -92,9 +95,10 @@ export interface IStorage {
   getTaskAuditLogs(taskId: string): Promise<(TaskAuditLog & { user: User })[]>;
 
   // Task sharing operations
-  getTaskShares(taskId: string): Promise<Team[]>;
+  getTaskShares(taskId: string): Promise<SharedTeamWithAssignee[]>;
   addTaskShare(taskId: string, teamId: string): Promise<void>;
   removeTaskShare(taskId: string, teamId: string): Promise<void>;
+  setShareAssignee(taskId: string, teamId: string, assigneeId: string | null): Promise<void>;
 
   // Tag operations
   getTags(): Promise<Tag[]>;
@@ -102,6 +106,12 @@ export interface IStorage {
   getTaskTags(taskId: string): Promise<Tag[]>;
   addTaskTag(taskId: string, tagId: string): Promise<void>;
   removeTaskTag(taskId: string, tagId: string): Promise<void>;
+
+  // Dependency operations
+  getTaskDependencies(taskId: string): Promise<TaskSummary[]>;
+  getTaskDependents(taskId: string): Promise<TaskSummary[]>;
+  addTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void>;
+  removeTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void>;
 
   // Dashboard stats
   getDashboardStats(userId: string): Promise<{
@@ -326,7 +336,6 @@ export class DatabaseStorage implements IStorage {
           or(eq(tasks.assigneeId, filters.requestingUserId), eq(tasks.creatorId, filters.requestingUserId))
         );
       } else {
-        // Sem equipes e sem usuário: retorna nada
         return [];
       }
     }
@@ -376,18 +385,20 @@ export class DatabaseStorage implements IStorage {
       commentsByTask.get(c.comment.taskId)!.push({ ...c.comment, user: c.user });
     }
 
-    // Batch: shared teams
-    const sharesByTask = new Map<string, Team[]>();
+    // Batch: shared teams with assignees
+    const sharesByTask = new Map<string, SharedTeamWithAssignee[]>();
     try {
+      const assigneeAlias = alias(users, 'shareAssignee');
       const allShares = await db
-        .select({ taskId: taskShares.taskId, team: teams })
+        .select({ taskId: taskShares.taskId, team: teams, assignee: assigneeAlias })
         .from(taskShares)
         .leftJoin(teams, eq(taskShares.teamId, teams.id))
+        .leftJoin(assigneeAlias, eq(taskShares.assigneeId, assigneeAlias.id))
         .where(inArray(taskShares.taskId, taskIds));
       for (const s of allShares) {
         if (s.team) {
           if (!sharesByTask.has(s.taskId)) sharesByTask.set(s.taskId, []);
-          sharesByTask.get(s.taskId)!.push(s.team);
+          sharesByTask.get(s.taskId)!.push({ ...s.team, assignee: s.assignee });
         }
       }
     } catch (_) {}
@@ -406,17 +417,85 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (_) {}
 
-    const tasksWithDetails: TaskWithDetails[] = results.map(result => ({
-      ...result.task,
-      assignee: result.assignee,
-      creator: result.creator,
-      team: result.team,
-      board: result.board,
-      subtasks: subtasksByTask.get(result.task.id) || [],
-      comments: commentsByTask.get(result.task.id) || [],
-      sharedTeams: sharesByTask.get(result.task.id) || [],
-      tags: tagsByTask.get(result.task.id) || [],
-    }));
+    // Batch: dependencies
+    const depsByTask = new Map<string, TaskSummary[]>();
+    const dependentsByTask = new Map<string, TaskSummary[]>();
+    try {
+      const depTaskAlias = alias(tasks, 'depTask');
+      const depAssigneeAlias = alias(users, 'depAssignee');
+      const depTeamAlias = alias(teams, 'depTeam');
+
+      const allDeps = await db
+        .select({
+          taskId: taskDependencies.taskId,
+          dep: depTaskAlias,
+          assignee: depAssigneeAlias,
+          team: depTeamAlias,
+        })
+        .from(taskDependencies)
+        .innerJoin(depTaskAlias, eq(taskDependencies.dependsOnTaskId, depTaskAlias.id))
+        .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
+        .leftJoin(depTeamAlias, eq(depTaskAlias.teamId, depTeamAlias.id))
+        .where(inArray(taskDependencies.taskId, taskIds));
+
+      for (const d of allDeps) {
+        if (!depsByTask.has(d.taskId)) depsByTask.set(d.taskId, []);
+        depsByTask.get(d.taskId)!.push({
+          id: d.dep.id,
+          title: d.dep.title,
+          status: d.dep.status,
+          dueDate: d.dep.dueDate,
+          ticketNumber: d.dep.ticketNumber,
+          assignee: d.assignee,
+          team: d.team,
+        });
+      }
+
+      const allDependents = await db
+        .select({
+          dependsOnTaskId: taskDependencies.dependsOnTaskId,
+          dep: depTaskAlias,
+          assignee: depAssigneeAlias,
+          team: depTeamAlias,
+        })
+        .from(taskDependencies)
+        .innerJoin(depTaskAlias, eq(taskDependencies.taskId, depTaskAlias.id))
+        .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
+        .leftJoin(depTeamAlias, eq(depTaskAlias.teamId, depTeamAlias.id))
+        .where(inArray(taskDependencies.dependsOnTaskId, taskIds));
+
+      for (const d of allDependents) {
+        if (!dependentsByTask.has(d.dependsOnTaskId)) dependentsByTask.set(d.dependsOnTaskId, []);
+        dependentsByTask.get(d.dependsOnTaskId)!.push({
+          id: d.dep.id,
+          title: d.dep.title,
+          status: d.dep.status,
+          dueDate: d.dep.dueDate,
+          ticketNumber: d.dep.ticketNumber,
+          assignee: d.assignee,
+          team: d.team,
+        });
+      }
+    } catch (_) {}
+
+    const tasksWithDetails: TaskWithDetails[] = results.map(result => {
+      const deps = depsByTask.get(result.task.id) || [];
+      const blockedBy = deps.some(d => d.status !== 'done');
+      return {
+        ...result.task,
+        assignee: result.assignee,
+        creator: result.creator,
+        team: result.team,
+        board: result.board,
+        subtasks: subtasksByTask.get(result.task.id) || [],
+        comments: commentsByTask.get(result.task.id) || [],
+        sharedTeams: sharesByTask.get(result.task.id) || [],
+        tags: tagsByTask.get(result.task.id) || [],
+        dependencies: deps,
+        dependents: dependentsByTask.get(result.task.id) || [],
+        blockedBy,
+      };
+    });
     return tasksWithDetails;
   }
 
@@ -462,6 +541,10 @@ export class DatabaseStorage implements IStorage {
       taskTagList = tagRows.map(r => r.tag);
     } catch (_) {}
 
+    const deps = await this.getTaskDependencies(id);
+    const dependents = await this.getTaskDependents(id);
+    const blockedBy = deps.some(d => d.status !== 'done');
+
     return {
       ...result.task,
       assignee: result.assignee,
@@ -472,6 +555,9 @@ export class DatabaseStorage implements IStorage {
       comments: commentsData.map((c: any) => ({ ...c.comment, user: c.user })),
       sharedTeams,
       tags: taskTagList,
+      dependencies: deps,
+      dependents,
+      blockedBy,
     };
   }
 
@@ -539,16 +625,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Task Shares ─────────────────────────────────────────────
-  async getTaskShares(taskId: string): Promise<Team[]> {
+  async getTaskShares(taskId: string): Promise<SharedTeamWithAssignee[]> {
     try {
+      const assigneeAlias = alias(users, 'shareAssignee');
       const rows = await db
-        .select({ team: teams })
+        .select({ team: teams, assignee: assigneeAlias })
         .from(taskShares)
         .leftJoin(teams, eq(taskShares.teamId, teams.id))
+        .leftJoin(assigneeAlias, eq(taskShares.assigneeId, assigneeAlias.id))
         .where(eq(taskShares.taskId, taskId));
-      return rows.map(r => r.team).filter(Boolean) as Team[];
+      return rows
+        .filter(r => r.team)
+        .map(r => ({ ...r.team!, assignee: r.assignee }));
     } catch (e) {
-      // Gracefully handle if table doesn't exist yet in this environment
       return [];
     }
   }
@@ -563,6 +652,13 @@ export class DatabaseStorage implements IStorage {
   async removeTaskShare(taskId: string, teamId: string): Promise<void> {
     await db
       .delete(taskShares)
+      .where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
+  }
+
+  async setShareAssignee(taskId: string, teamId: string, assigneeId: string | null): Promise<void> {
+    await db
+      .update(taskShares)
+      .set({ assigneeId })
       .where(and(eq(taskShares.taskId, taskId), eq(taskShares.teamId, teamId)));
   }
 
@@ -593,6 +689,92 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(taskTags)
       .where(and(eq(taskTags.taskId, taskId), eq(taskTags.tagId, tagId)));
+  }
+
+  // ── Dependencies ────────────────────────────────────────────
+  async getTaskDependencies(taskId: string): Promise<TaskSummary[]> {
+    try {
+      const depTaskAlias = alias(tasks, 'depTask');
+      const depAssigneeAlias = alias(users, 'depAssignee');
+      const depTeamAlias = alias(teams, 'depTeam');
+
+      const rows = await db
+        .select({
+          dep: depTaskAlias,
+          assignee: depAssigneeAlias,
+          team: depTeamAlias,
+        })
+        .from(taskDependencies)
+        .innerJoin(depTaskAlias, eq(taskDependencies.dependsOnTaskId, depTaskAlias.id))
+        .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
+        .leftJoin(depTeamAlias, eq(depTaskAlias.teamId, depTeamAlias.id))
+        .where(eq(taskDependencies.taskId, taskId));
+
+      return rows.map(r => ({
+        id: r.dep.id,
+        title: r.dep.title,
+        status: r.dep.status,
+        dueDate: r.dep.dueDate,
+        ticketNumber: r.dep.ticketNumber,
+        assignee: r.assignee,
+        team: r.team,
+      }));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async getTaskDependents(taskId: string): Promise<TaskSummary[]> {
+    try {
+      const depTaskAlias = alias(tasks, 'depTask');
+      const depAssigneeAlias = alias(users, 'depAssignee');
+      const depTeamAlias = alias(teams, 'depTeam');
+
+      const rows = await db
+        .select({
+          dep: depTaskAlias,
+          assignee: depAssigneeAlias,
+          team: depTeamAlias,
+        })
+        .from(taskDependencies)
+        .innerJoin(depTaskAlias, eq(taskDependencies.taskId, depTaskAlias.id))
+        .leftJoin(depAssigneeAlias, eq(depTaskAlias.assigneeId, depAssigneeAlias.id))
+        .leftJoin(depTeamAlias, eq(depTaskAlias.teamId, depTeamAlias.id))
+        .where(eq(taskDependencies.dependsOnTaskId, taskId));
+
+      return rows.map(r => ({
+        id: r.dep.id,
+        title: r.dep.title,
+        status: r.dep.status,
+        dueDate: r.dep.dueDate,
+        ticketNumber: r.dep.ticketNumber,
+        assignee: r.assignee,
+        team: r.team,
+      }));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async addTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void> {
+    if (taskId === dependsOnTaskId) throw new Error("Uma tarefa não pode depender de si mesma");
+    // Cycle check: if dependsOnTaskId already depends on taskId (directly or indirectly), reject
+    const reverseDeps = await this.getTaskDependencies(dependsOnTaskId);
+    const wouldCreateCycle = reverseDeps.some(d => d.id === taskId);
+    if (wouldCreateCycle) throw new Error("Isso criaria uma dependência circular");
+    await db
+      .insert(taskDependencies)
+      .values({ taskId, dependsOnTaskId })
+      .onConflictDoNothing();
+  }
+
+  async removeTaskDependency(taskId: string, dependsOnTaskId: string): Promise<void> {
+    await db
+      .delete(taskDependencies)
+      .where(and(
+        eq(taskDependencies.taskId, taskId),
+        eq(taskDependencies.dependsOnTaskId, dependsOnTaskId)
+      ));
   }
 
   // ── Dashboard stats ────────────────────────────────────────

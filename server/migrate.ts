@@ -44,6 +44,12 @@ async function ensureCriticalTables() {
       PRIMARY KEY (task_id, team_id)
     )
   `);
+
+  // Add assignee_id to task_shares if missing
+  await db.execute(sql`
+    ALTER TABLE task_shares ADD COLUMN IF NOT EXISTS assignee_id VARCHAR REFERENCES users(id) ON DELETE SET NULL
+  `);
+
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS tags (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,11 +58,42 @@ async function ensureCriticalTables() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS task_tags (
       task_id VARCHAR NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
       tag_id VARCHAR NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
       PRIMARY KEY (task_id, tag_id)
     )
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS task_dependencies (
+      task_id VARCHAR NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      depends_on_task_id VARCHAR NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (task_id, depends_on_task_id)
+    )
+  `);
+
+  // Add renegotiation columns to tasks if missing
+  await db.execute(sql`
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS renegotiation_count INTEGER NOT NULL DEFAULT 0
+  `);
+  await db.execute(sql`
+    ALTER TABLE tasks ADD COLUMN IF NOT EXISTS last_renegotiated_at TIMESTAMP
+  `);
+
+  // Add renegotiated status to status enum if missing
+  await db.execute(sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_enum WHERE enumlabel = 'renegotiated'
+        AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'status')
+      ) THEN
+        ALTER TYPE status ADD VALUE 'renegotiated';
+      END IF;
+    END$$
   `);
 }

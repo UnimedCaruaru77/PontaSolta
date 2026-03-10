@@ -3,7 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { TaskWithDetails } from "@shared/schema";
+import { Lock } from "lucide-react";
+import type { TaskWithDetails, SharedTeamWithAssignee } from "@shared/schema";
 
 interface TaskCardProps {
   task: TaskWithDetails;
@@ -18,6 +19,7 @@ export default function TaskCard({ task }: TaskCardProps) {
   };
 
   const getBorderClass = () => {
+    if (task.status === 'renegotiated') return 'border-orange-500/50';
     if (task.urgency === 'critical' && task.importance === 'high') return 'border-red-500/50';
     if (task.urgency === 'high' || task.urgency === 'critical') return 'border-orange-500/50';
     if (task.complexity === 'complex') return 'border-secondary/50';
@@ -25,6 +27,20 @@ export default function TaskCard({ task }: TaskCardProps) {
   };
 
   const getPriorityBadge = () => {
+    if (task.status === 'renegotiated') {
+      const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+      return (
+        <Badge className={cn(
+          "text-[10px] px-1.5 py-0",
+          isOverdue
+            ? "bg-red-500/20 text-red-400 border-red-500/50"
+            : "bg-orange-500/20 text-orange-400 border-orange-500/50"
+        )}>
+          {isOverdue ? "REPAC·ATRASADO" : "REPACTUADO"}
+          {(task.renegotiationCount || 0) > 1 && <span className="ml-0.5">({task.renegotiationCount}x)</span>}
+        </Badge>
+      );
+    }
     if (task.urgency === 'critical' && task.importance === 'high') {
       return <Badge className="bg-red-500/20 text-red-400 border-red-500/50 text-[10px] px-1.5 py-0">CRÍTICO</Badge>;
     }
@@ -104,6 +120,10 @@ export default function TaskCard({ task }: TaskCardProps) {
     return null;
   };
 
+  // Shared teams with assignees for the footer avatars
+  const sharedWithAssignees = (task.sharedTeams as SharedTeamWithAssignee[] | undefined || [])
+    .filter(t => t.assignee);
+
   return (
     <div
       className={cn(
@@ -122,6 +142,16 @@ export default function TaskCard({ task }: TaskCardProps) {
           )}
           data-testid={`task-card-title-${task.id}`}
         >
+          {task.blockedBy && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Lock className="size-3 text-red-400 inline mr-1 mb-0.5" />
+                </TooltipTrigger>
+                <TooltipContent>Bloqueada por dependências pendentes</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {task.title}
         </h4>
         <div className="flex items-center space-x-1 shrink-0">
@@ -182,17 +212,54 @@ export default function TaskCard({ task }: TaskCardProps) {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-1.5">
-          <Avatar className="w-5 h-5">
-            <AvatarImage src={task.assignee?.profileImageUrl || undefined} />
-            <AvatarFallback className="text-[10px] font-semibold bg-primary/20 text-primary">
-              {getInitials(task.assignee?.firstName, task.assignee?.lastName, task.assignee?.email)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground truncate max-w-[100px]" data-testid={`task-card-assignee-${task.id}`}>
+          {/* Primary assignee */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Avatar className="w-5 h-5">
+                  <AvatarImage src={task.assignee?.profileImageUrl || undefined} />
+                  <AvatarFallback className="text-[10px] font-semibold bg-primary/20 text-primary">
+                    {getInitials(task.assignee?.firstName, task.assignee?.lastName, task.assignee?.email)}
+                  </AvatarFallback>
+                </Avatar>
+              </TooltipTrigger>
+              <TooltipContent>
+                {getUserName(task.assignee?.firstName, task.assignee?.lastName, task.assignee?.email)}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Shared teams assignees */}
+          {sharedWithAssignees.slice(0, 3).map(t => (
+            <TooltipProvider key={t.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="w-5 h-5 border border-blue-500/40">
+                    <AvatarImage src={t.assignee?.profileImageUrl || undefined} />
+                    <AvatarFallback className="text-[10px] font-semibold bg-blue-500/20 text-blue-300">
+                      {getInitials(t.assignee?.firstName, t.assignee?.lastName, t.assignee?.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {getUserName(t.assignee?.firstName, t.assignee?.lastName, t.assignee?.email)} ({t.name})
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+          {sharedWithAssignees.length > 3 && (
+            <span className="text-[10px] text-blue-400">+{sharedWithAssignees.length - 3}</span>
+          )}
+
+          <span className="text-xs text-muted-foreground truncate max-w-[80px]" data-testid={`task-card-assignee-${task.id}`}>
             {getUserName(task.assignee?.firstName, task.assignee?.lastName, task.assignee?.email)}
           </span>
         </div>
-        <span className="text-xs text-muted-foreground shrink-0" data-testid={`task-card-due-date-${task.id}`}>
+        <span className={cn(
+          "text-xs shrink-0",
+          formatDueDate(task.dueDate) === 'Atrasado' ? 'text-red-400' :
+          formatDueDate(task.dueDate) === 'Hoje' ? 'text-yellow-400' : 'text-muted-foreground'
+        )} data-testid={`task-card-due-date-${task.id}`}>
           {formatDueDate(task.dueDate)}
         </span>
       </div>

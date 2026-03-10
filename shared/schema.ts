@@ -67,7 +67,7 @@ export const priorityEnum = pgEnum("priority", ["low", "medium", "high"]);
 export const urgencyEnum = pgEnum("urgency", ["low", "medium", "high", "critical"]);
 export const importanceEnum = pgEnum("importance", ["low", "medium", "high"]);
 export const complexityEnum = pgEnum("complexity", ["simple", "medium", "complex"]);
-export const statusEnum = pgEnum("status", ["todo", "in_progress", "review", "done"]);
+export const statusEnum = pgEnum("status", ["todo", "in_progress", "review", "done", "renegotiated"]);
 
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -86,6 +86,8 @@ export const tasks = pgTable("tasks", {
   startDate: timestamp("start_date"),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
+  renegotiationCount: integer("renegotiation_count").notNull().default(0),
+  lastRenegotiatedAt: timestamp("last_renegotiated_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -119,9 +121,11 @@ export const taskAuditLog = pgTable("task_audit_log", {
 });
 
 // Task sharing: a card can be shared with multiple teams (for shared merit)
+// Each share can have a designated assignee from the secondary team
 export const taskShares = pgTable("task_shares", {
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   teamId: varchar("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  assigneeId: varchar("assignee_id").references(() => users.id, { onDelete: "set null" }),
   sharedAt: timestamp("shared_at").defaultNow(),
 }, (table) => [primaryKey({ columns: [table.taskId, table.teamId] })]);
 
@@ -138,6 +142,13 @@ export const taskTags = pgTable("task_tags", {
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   tagId: varchar("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
 }, (table) => [primaryKey({ columns: [table.taskId, table.tagId] })]);
+
+// Task dependencies: taskId depends on / is blocked by dependsOnTaskId
+export const taskDependencies = pgTable("task_dependencies", {
+  taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  dependsOnTaskId: varchar("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [primaryKey({ columns: [table.taskId, table.dependsOnTaskId] })]);
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -180,6 +191,8 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   subtasks: many(subtasks),
   comments: many(taskComments),
   auditLogs: many(taskAuditLog),
+  dependencies: many(taskDependencies, { relationName: "taskDeps" }),
+  dependents: many(taskDependencies, { relationName: "taskDependents" }),
 }));
 
 export const subtasksRelations = relations(subtasks, ({ one }) => ({
@@ -200,6 +213,7 @@ export const taskAuditLogRelations = relations(taskAuditLog, ({ one }) => ({
 export const taskSharesRelations = relations(taskShares, ({ one }) => ({
   task: one(tasks, { fields: [taskShares.taskId], references: [tasks.id] }),
   team: one(teams, { fields: [taskShares.teamId], references: [teams.id] }),
+  assignee: one(users, { fields: [taskShares.assigneeId], references: [users.id] }),
 }));
 
 export const tagsRelations = relations(tags, ({ many }) => ({
@@ -209,6 +223,11 @@ export const tagsRelations = relations(tags, ({ many }) => ({
 export const taskTagsRelations = relations(taskTags, ({ one }) => ({
   task: one(tasks, { fields: [taskTags.taskId], references: [tasks.id] }),
   tag: one(tags, { fields: [taskTags.tagId], references: [tags.id] }),
+}));
+
+export const taskDependenciesRelations = relations(taskDependencies, ({ one }) => ({
+  task: one(tasks, { fields: [taskDependencies.taskId], references: [tasks.id], relationName: "taskDeps" }),
+  dependsOn: one(tasks, { fields: [taskDependencies.dependsOnTaskId], references: [tasks.id], relationName: "taskDependents" }),
 }));
 
 // Types
@@ -232,6 +251,7 @@ export const insertTaskSchema = createInsertSchema(tasks)
     startDate: z.union([z.coerce.date(), z.null()]).optional(),
     dueDate: z.union([z.coerce.date(), z.null()]).optional(),
     completedAt: z.union([z.coerce.date(), z.null()]).optional(),
+    lastRenegotiatedAt: z.union([z.coerce.date(), z.null()]).optional(),
   });
 
 export type Subtask = typeof subtasks.$inferSelect;
@@ -250,6 +270,17 @@ export type Tag = typeof tags.$inferSelect;
 export type InsertTag = typeof tags.$inferInsert;
 export const insertTagSchema = createInsertSchema(tags).omit({ id: true, createdAt: true });
 
+export type TaskDependency = typeof taskDependencies.$inferSelect;
+
+// Shared team with optional assignee
+export type SharedTeamWithAssignee = Team & { assignee?: User | null };
+
+// Task summary for dependency display
+export type TaskSummary = Pick<Task, 'id' | 'title' | 'status' | 'dueDate' | 'ticketNumber'> & {
+  assignee?: User | null;
+  team?: Team | null;
+};
+
 // Extended types
 export type TaskWithDetails = Task & {
   assignee?: User | null;
@@ -259,8 +290,11 @@ export type TaskWithDetails = Task & {
   subtasks: Subtask[];
   comments: (TaskComment & { user: User })[];
   auditLogs?: (TaskAuditLog & { user: User })[];
-  sharedTeams?: Team[];
+  sharedTeams?: SharedTeamWithAssignee[];
   tags?: Tag[];
+  dependencies?: TaskSummary[];
+  dependents?: TaskSummary[];
+  blockedBy?: boolean;
 };
 
 export type BoardWithTeam = Board & { team: Team };

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { TaskComments } from "./task-comments";
 import { TaskAuditLog } from "./task-audit-log";
 import { useState } from "react";
@@ -16,16 +17,17 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Calendar, User, Clock, AlertTriangle, CheckSquare,
   MessageSquare, FileText, History, Hash, CheckCircle2, XCircle,
-  Users, Share2, X, Plus, ArrowRightLeft, Tag, Gauge
+  Users, Share2, X, Plus, ArrowRightLeft, Tag, Gauge, GitFork, Lock
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { TaskWithDetails, User as UserType, Team, Tag as TagType } from "@shared/schema";
+import type { TaskWithDetails, User as UserType, Team, Tag as TagType, TaskSummary, SharedTeamWithAssignee } from "@shared/schema";
 
 interface TaskDetailsModalProps {
   taskId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTaskClick?: (taskId: string) => void;
 }
 
 function getInitials(firstName?: string | null, lastName?: string | null) {
@@ -34,7 +36,33 @@ function getInitials(firstName?: string | null, lastName?: string | null) {
   return "U";
 }
 
-export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModalProps) {
+function getUserName(u?: UserType | null) {
+  if (!u) return "Sem responsável";
+  if (u.firstName && u.lastName) return `${u.firstName} ${u.lastName}`;
+  if (u.firstName) return u.firstName;
+  return u.email;
+}
+
+function getStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    todo: "A Fazer",
+    in_progress: "Em Progresso",
+    review: "Em Revisão",
+    done: "Concluído",
+    renegotiated: "Repactuado",
+  };
+  return labels[status] || status;
+}
+
+function getStatusBadgeClass(status: string) {
+  if (status === 'done') return 'bg-green-500/20 text-green-400 border-green-500/40';
+  if (status === 'renegotiated') return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
+  if (status === 'in_progress') return 'bg-blue-500/20 text-blue-400 border-blue-500/40';
+  if (status === 'review') return 'bg-purple-500/20 text-purple-400 border-purple-500/40';
+  return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
+}
+
+export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -58,9 +86,15 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     enabled: open,
   });
 
+  const { data: allTasks = [] } = useQuery<TaskWithDetails[]>({
+    queryKey: ["/api/tasks"],
+    enabled: open,
+  });
+
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#22c55e");
   const [showNewTag, setShowNewTag] = useState(false);
+  const [depSearch, setDepSearch] = useState("");
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -102,6 +136,17 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     onError: () => toast({ title: "Erro ao remover compartilhamento", variant: "destructive" }),
   });
 
+  const setShareAssigneeMutation = useMutation({
+    mutationFn: async ({ teamId, assigneeId }: { teamId: string; assigneeId: string | null }) => {
+      await apiRequest("PATCH", `/api/tasks/${taskId}/shares/${teamId}`, { assigneeId });
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Responsável da equipe atualizado!" });
+    },
+    onError: () => toast({ title: "Erro ao atribuir responsável", variant: "destructive" }),
+  });
+
   const addTagMutation = useMutation({
     mutationFn: async (tagId: string) => {
       await apiRequest("POST", `/api/tasks/${taskId}/tags`, { tagId });
@@ -141,6 +186,33 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     onError: () => toast({ title: "Erro ao criar etiqueta", variant: "destructive" }),
   });
 
+  const addDepMutation = useMutation({
+    mutationFn: async (dependsOnTaskId: string) => {
+      const res = await apiRequest("POST", `/api/tasks/${taskId}/dependencies`, { dependsOnTaskId });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Erro ao adicionar dependência");
+      }
+    },
+    onSuccess: () => {
+      invalidate();
+      setDepSearch("");
+      toast({ title: "Dependência adicionada!" });
+    },
+    onError: (err: any) => toast({ title: err?.message || "Erro ao adicionar dependência", variant: "destructive" }),
+  });
+
+  const removeDepMutation = useMutation({
+    mutationFn: async (dependsOnTaskId: string) => {
+      await apiRequest("DELETE", `/api/tasks/${taskId}/dependencies/${dependsOnTaskId}`);
+    },
+    onSuccess: () => {
+      invalidate();
+      toast({ title: "Dependência removida." });
+    },
+    onError: () => toast({ title: "Erro ao remover dependência", variant: "destructive" }),
+  });
+
   const getSlaInfo = () => {
     if (!task?.ticketNumber || !task?.dueDate) return null;
     const start = task.startDate ? new Date(task.startDate) : new Date(task.createdAt!);
@@ -174,11 +246,26 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
     return Math.round((task.subtasks.filter(st => st.completed).length / task.subtasks.length) * 100);
   };
 
-  // Teams not yet associated (neither owner nor shared)
   const currentSharedTeamIds = new Set((task?.sharedTeams || []).map(t => t.id));
   const availableToShare = (allTeams as Team[]).filter(
     t => t.id !== task?.teamId && !currentSharedTeamIds.has(t.id)
   );
+
+  // Dependencies: tasks that can be added (excluding self, already deps, and tasks that depend on this one)
+  const currentDepIds = new Set((task?.dependencies || []).map(d => d.id));
+  const currentDependentIds = new Set((task?.dependents || []).map(d => d.id));
+  const availableForDep = (allTasks as TaskWithDetails[]).filter(
+    t => t.id !== taskId && !currentDepIds.has(t.id) && !currentDependentIds.has(t.id)
+  );
+  const filteredDeps = depSearch.trim().length > 1
+    ? availableForDep.filter(t =>
+        t.title.toLowerCase().includes(depSearch.toLowerCase()) ||
+        (t.ticketNumber && t.ticketNumber.toLowerCase().includes(depSearch.toLowerCase()))
+      )
+    : [];
+
+  const isOverdue = task?.dueDate && new Date(task.dueDate) < new Date() && task?.status !== 'done';
+  const isRenegotiatedOverdue = task?.status === 'renegotiated' && task?.dueDate && new Date(task.dueDate) < new Date();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,6 +278,11 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
               <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 font-mono text-xs shrink-0">
                 <Hash className="size-3 mr-1" />
                 {task.ticketNumber}
+              </Badge>
+            )}
+            {task?.blockedBy && (
+              <Badge className="bg-red-500/20 text-red-400 border-red-500/40 text-xs shrink-0">
+                <Lock className="size-3 mr-1" /> Bloqueada
               </Badge>
             )}
           </DialogTitle>
@@ -226,7 +318,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                     onValueChange={v => updateMutation.mutate({ status: v })}
                     disabled={updateMutation.isPending}
                   >
-                    <SelectTrigger className="bg-primary/20 text-primary border-primary/50 hover:bg-primary/30 h-8 text-xs">
+                    <SelectTrigger className={`h-8 text-xs border ${getStatusBadgeClass(task.status)}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-black border-primary/50">
@@ -234,8 +326,29 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                       <SelectItem value="in_progress">Em Progresso</SelectItem>
                       <SelectItem value="review">Em Revisão</SelectItem>
                       <SelectItem value="done">Concluído</SelectItem>
+                      <SelectItem value="renegotiated">Repactuado</SelectItem>
                     </SelectContent>
                   </Select>
+                  {/* Renegotiation info */}
+                  {task.status === 'renegotiated' && (
+                    <div className="mt-2 space-y-1">
+                      {(task.renegotiationCount || 0) > 0 && (
+                        <p className="text-[10px] text-orange-400">
+                          {task.renegotiationCount}x repactuado
+                        </p>
+                      )}
+                      {task.lastRenegotiatedAt && (
+                        <p className="text-[10px] text-gray-500">
+                          Última: {new Date(task.lastRenegotiatedAt).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                      {isRenegotiatedOverdue && (
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/40 text-[10px] px-1 py-0">
+                          Repactuado · Atrasado
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-black/40 p-3 rounded border border-primary/20">
@@ -294,8 +407,8 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                 </div>
               </div>
 
-              {/* Finish / Reopen quick actions */}
-              <div className="flex gap-2">
+              {/* Quick actions */}
+              <div className="flex gap-2 flex-wrap">
                 {task.status !== 'done' ? (
                   <Button
                     size="sm"
@@ -334,7 +447,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-black/40 p-4 rounded border border-primary/20">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-                    <User className="size-4" /> Responsável
+                    <User className="size-4" /> Responsável Principal
                   </h4>
                   <div className="space-y-3">
                     {task.assignee && (
@@ -383,6 +496,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                   </div>
                 </div>
 
+                {/* Dates with DatePicker */}
                 <div className="bg-black/40 p-4 rounded border border-primary/20 space-y-3">
                   <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
                     <Calendar className="size-4" /> Prazos
@@ -392,35 +506,31 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                     <p className="text-xs text-gray-400 flex items-center gap-1">
                       <Clock className="size-3" /> Data de início
                     </p>
-                    <Input
-                      type="date"
-                      className="bg-black/40 border-primary/30 text-white h-8 text-xs [color-scheme:dark]"
-                      value={task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : ''}
+                    <DatePicker
+                      value={task.startDate ? new Date(task.startDate) : null}
+                      onChange={date => updateMutation.mutate({ startDate: date ? date.toISOString() : null })}
                       disabled={updateMutation.isPending}
-                      onChange={e => {
-                        const val = e.target.value;
-                        updateMutation.mutate({ startDate: val ? new Date(val).toISOString() : null });
-                      }}
+                      placeholder="Definir início..."
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <p className={`text-xs flex items-center gap-1 ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' ? 'text-red-400' : 'text-gray-400'}`}>
+                    <p className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-gray-400'}`}>
                       <AlertTriangle className="size-3" />
-                      {task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done'
-                        ? 'Prazo vencido — repactue abaixo'
-                        : 'Prazo final'}
+                      {isOverdue ? 'Prazo vencido — repactue abaixo' : 'Prazo final'}
                     </p>
-                    <Input
-                      type="date"
-                      className={`bg-black/40 border-primary/30 text-white h-8 text-xs [color-scheme:dark] ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'done' ? 'border-red-500/60' : ''}`}
-                      value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
+                    <DatePicker
+                      value={task.dueDate ? new Date(task.dueDate) : null}
+                      onChange={date => updateMutation.mutate({ dueDate: date ? date.toISOString() : null })}
                       disabled={updateMutation.isPending}
-                      onChange={e => {
-                        const val = e.target.value;
-                        updateMutation.mutate({ dueDate: val ? new Date(val).toISOString() : null });
-                      }}
+                      placeholder="Definir prazo..."
+                      isOverdue={!!isOverdue}
                     />
+                    {isOverdue && (
+                      <p className="text-[10px] text-orange-400/80">
+                        Alterar o prazo irá mover esta tarefa para o status "Repactuado"
+                      </p>
+                    )}
                   </div>
 
                   {task.completedAt && (
@@ -456,7 +566,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                 </div>
               </div>
 
-              {/* Team Transfer + Sharing */}
+              {/* Team Transfer + Sharing with assignees */}
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Transfer team */}
                 <div className="bg-black/40 p-4 rounded border border-primary/20">
@@ -464,7 +574,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                     <ArrowRightLeft className="size-4" /> Equipe Responsável
                   </h4>
                   <p className="text-xs text-gray-400 mb-3">
-                    Transferir para outra equipe remove o responsável e o quadro atual, mantendo todos os demais dados.
+                    Transferir para outra equipe remove o responsável e o quadro atual.
                   </p>
                   <Select
                     value={task.teamId || "none"}
@@ -493,36 +603,75 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                   )}
                 </div>
 
-                {/* Share with teams */}
+                {/* Share with teams + assignee per team */}
                 <div className="bg-black/40 p-4 rounded border border-primary/20">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-                    <Share2 className="size-4" /> Compartilhar com Equipes
+                    <Share2 className="size-4" /> Responsabilidade Compartilhada
                   </h4>
                   <p className="text-xs text-gray-400 mb-3">
-                    Compartilhe o mérito desta entrega com outras equipes.
+                    Compartilhe e designe um responsável de cada equipe parceira.
                   </p>
 
                   {/* Current shared teams */}
-                  <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
+                  <div className="space-y-2 mb-3">
                     {(task.sharedTeams || []).length === 0 ? (
                       <span className="text-xs text-gray-500">Nenhuma equipe ainda</span>
                     ) : (
-                      (task.sharedTeams || []).map(t => (
-                        <Badge
-                          key={t.id}
-                          className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs pr-1 flex items-center gap-1"
-                        >
-                          <Users className="size-3" />
-                          {t.name}
-                          <button
-                            onClick={() => unshareMutation.mutate(t.id)}
-                            disabled={unshareMutation.isPending}
-                            className="ml-1 hover:text-red-400 transition-colors"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </Badge>
-                      ))
+                      (task.sharedTeams as SharedTeamWithAssignee[]).map(t => {
+                        // Get members of this shared team from allTeams
+                        const teamObj = (allTeams as any[]).find((tm: any) => tm.id === t.id);
+                        const members: UserType[] = teamObj?.members || [];
+                        return (
+                          <div key={t.id} className="bg-black/30 rounded border border-primary/10 p-2 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
+                                <Users className="size-3 mr-1" />
+                                {t.name}
+                              </Badge>
+                              <button
+                                onClick={() => unshareMutation.mutate(t.id)}
+                                disabled={unshareMutation.isPending}
+                                className="text-gray-500 hover:text-red-400 transition-colors"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </div>
+                            {/* Assignee for this shared team */}
+                            <div className="flex items-center gap-2">
+                              {t.assignee ? (
+                                <Avatar className="size-5">
+                                  <AvatarImage src={t.assignee.profileImageUrl || undefined} />
+                                  <AvatarFallback className="text-[10px] bg-blue-500/20 text-blue-300">
+                                    {getInitials(t.assignee.firstName, t.assignee.lastName)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ) : null}
+                              <Select
+                                value={t.assignee?.id || "none"}
+                                onValueChange={v => setShareAssigneeMutation.mutate({
+                                  teamId: t.id,
+                                  assigneeId: v === 'none' ? null : v
+                                })}
+                                disabled={setShareAssigneeMutation.isPending}
+                              >
+                                <SelectTrigger className="h-7 text-[11px] bg-black/40 border-primary/20 flex-1">
+                                  <SelectValue placeholder="Atribuir responsável..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-black border-primary/50">
+                                  <SelectItem value="none">Sem responsável</SelectItem>
+                                  {members.map(m => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                      {m.firstName && m.lastName
+                                        ? `${m.firstName} ${m.lastName}`
+                                        : m.email}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
 
@@ -549,13 +698,112 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                 </div>
               </div>
 
+              {/* Dependencies */}
+              <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                  <GitFork className="size-4" /> Dependências
+                </h4>
+
+                {/* Blocked by */}
+                {(task.dependencies || []).length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                      <Lock className="size-3" /> Esta tarefa aguarda:
+                    </p>
+                    <div className="space-y-1.5">
+                      {(task.dependencies as TaskSummary[]).map(dep => (
+                        <div key={dep.id} className="flex items-center justify-between bg-black/30 rounded border border-red-500/20 p-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge className={`text-[10px] shrink-0 ${getStatusBadgeClass(dep.status)}`}>
+                              {getStatusLabel(dep.status)}
+                            </Badge>
+                            <button
+                              className="text-xs text-gray-300 hover:text-primary truncate text-left"
+                              onClick={() => dep.id && onTaskClick && onTaskClick(dep.id)}
+                            >
+                              {dep.ticketNumber && <span className="text-blue-400 font-mono mr-1">{dep.ticketNumber}</span>}
+                              {dep.title}
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => removeDepMutation.mutate(dep.id)}
+                            disabled={removeDepMutation.isPending}
+                            className="text-gray-500 hover:text-red-400 transition-colors shrink-0 ml-2"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Dependents (tasks that depend on this) */}
+                {(task.dependents || []).length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-400 mb-2">
+                      Ao concluir esta tarefa, desbloqueia:
+                    </p>
+                    <div className="space-y-1.5">
+                      {(task.dependents as TaskSummary[]).map(dep => (
+                        <div key={dep.id} className="flex items-center gap-2 bg-black/30 rounded border border-green-500/20 p-2">
+                          <Badge className={`text-[10px] shrink-0 ${getStatusBadgeClass(dep.status)}`}>
+                            {getStatusLabel(dep.status)}
+                          </Badge>
+                          <button
+                            className="text-xs text-gray-300 hover:text-primary truncate text-left"
+                            onClick={() => dep.id && onTaskClick && onTaskClick(dep.id)}
+                          >
+                            {dep.ticketNumber && <span className="text-blue-400 font-mono mr-1">{dep.ticketNumber}</span>}
+                            {dep.title}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add dependency */}
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400">Adicionar dependência (esta tarefa aguarda outra):</p>
+                  <Input
+                    placeholder="Buscar tarefa por título ou número..."
+                    value={depSearch}
+                    onChange={e => setDepSearch(e.target.value)}
+                    className="h-8 text-xs bg-black/40 border-primary/30 text-white"
+                  />
+                  {filteredDeps.length > 0 && (
+                    <div className="max-h-36 overflow-y-auto space-y-1 border border-primary/20 rounded p-1 bg-black/20">
+                      {filteredDeps.slice(0, 8).map(t => (
+                        <button
+                          key={t.id}
+                          className="w-full flex items-center gap-2 p-1.5 rounded hover:bg-primary/10 text-left text-xs"
+                          onClick={() => addDepMutation.mutate(t.id)}
+                          disabled={addDepMutation.isPending}
+                        >
+                          <Badge className={`text-[10px] shrink-0 ${getStatusBadgeClass(t.status)}`}>
+                            {getStatusLabel(t.status)}
+                          </Badge>
+                          <span className="truncate">
+                            {t.ticketNumber && <span className="text-blue-400 font-mono mr-1">{t.ticketNumber}</span>}
+                            {t.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {depSearch.trim().length > 1 && filteredDeps.length === 0 && (
+                    <p className="text-xs text-gray-500">Nenhuma tarefa encontrada</p>
+                  )}
+                </div>
+              </div>
+
               {/* Tags / Etiquetas */}
               <div className="bg-black/40 p-4 rounded border border-primary/20">
                 <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                   <Tag className="size-4" /> Etiquetas
                 </h4>
 
-                {/* Current tags */}
                 <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
                   {(task.tags || []).length === 0 ? (
                     <span className="text-xs text-gray-500">Nenhuma etiqueta</span>
@@ -579,11 +827,9 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                   )}
                 </div>
 
-                {/* Add existing tag */}
                 {(() => {
                   const currentTagIds = new Set((task.tags || []).map(t => t.id));
                   const available = (allTags as TagType[]).filter(t => !currentTagIds.has(t.id));
-                  if (available.length === 0 && !currentUser) return null;
                   return (
                     <div className="flex flex-wrap gap-2 items-center">
                       {available.length > 0 && (
@@ -624,7 +870,6 @@ export function TaskDetailsModal({ taskId, open, onOpenChange }: TaskDetailsModa
                   );
                 })()}
 
-                {/* Create new tag form */}
                 {showNewTag && (
                   <div className="mt-3 flex items-center gap-2 flex-wrap">
                     <Input
