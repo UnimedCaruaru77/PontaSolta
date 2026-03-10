@@ -72,6 +72,7 @@ Preferred communication style: Simple, everyday language. Portuguese (Brazilian)
   - **Dashboard Analytics**: Graphical representation of tasks by status, priority, and time evolution with CSV export.
   - **Event Calendar**: Monthly calendar view for team events with CRUD operations for leads/admins.
 - **UI/UX**: Cyberpunk-inspired dark theme with neon accents, improved DatePicker components, and photo display for task assignees.
+- **Visual Theme System**: 8 selectable themes (Neon Black, Midnight Navy, Slate & Coral, Ocean Depth, Forest Executive, Carbon & Ice, Royal Amethyst, Unimed). Theme saved to localStorage, applied via `data-theme` attribute on `<html>`. Selector available only to admins on the `/users` page. Implemented via `ThemeProvider` context in `client/src/hooks/useTheme.tsx`.
 
 ## Core Routes
 - `/`: Dashboard

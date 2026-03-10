@@ -11,13 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { UserPlus, Settings } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
+import { UserPlus, Settings, Palette, Check } from "lucide-react";
 import type { User } from "@shared/schema";
 import { useState } from "react";
 
 export default function Users() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
+  const { theme, setTheme, themes } = useTheme();
 
   // New user dialog
   const [showNewUserDialog, setShowNewUserDialog] = useState(false);
@@ -147,6 +149,83 @@ export default function Users() {
 
   return (
     <div className="space-y-6" data-testid="users-page">
+
+      {/* ── Aparência do Sistema (apenas admin) ── */}
+      {currentUser?.role === 'admin' && (
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Palette className="w-5 h-5 text-primary" />
+              <div>
+                <CardTitle>Aparência do Sistema</CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Escolha o tema visual da interface. A preferência é salva localmente.
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {themes.map((t) => {
+                const isActive = theme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTheme(t.id)}
+                    className={`
+                      relative rounded-lg border-2 p-3 text-left transition-all duration-200
+                      hover:scale-[1.03] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary
+                      ${isActive
+                        ? 'border-primary shadow-md'
+                        : 'border-border hover:border-muted-foreground/50'}
+                    `}
+                    style={{ background: t.colors.bg }}
+                  >
+                    {/* Swatches de cor */}
+                    <div className="flex gap-1 mb-2.5">
+                      <div
+                        className="h-4 flex-1 rounded-sm"
+                        style={{ background: t.colors.sidebar }}
+                      />
+                      <div
+                        className="h-4 flex-1 rounded-sm"
+                        style={{ background: t.colors.primary }}
+                      />
+                      <div
+                        className="h-4 flex-1 rounded-sm"
+                        style={{ background: t.colors.accent }}
+                      />
+                    </div>
+                    {/* Nome e descrição */}
+                    <p
+                      className="text-xs font-semibold leading-tight"
+                      style={{ color: t.dark ? '#e5e5e5' : '#1a1a1a' }}
+                    >
+                      {t.label}
+                    </p>
+                    <p
+                      className="text-[10px] mt-0.5 leading-tight opacity-70"
+                      style={{ color: t.dark ? '#e5e5e5' : '#1a1a1a' }}
+                    >
+                      {t.description}
+                    </p>
+                    {/* Check quando ativo */}
+                    {isActive && (
+                      <span
+                        className="absolute top-2 right-2 flex items-center justify-center w-5 h-5 rounded-full"
+                        style={{ background: t.colors.primary }}
+                      >
+                        <Check className="w-3 h-3" style={{ color: t.dark ? '#000' : '#fff' }} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex items-center justify-between">
