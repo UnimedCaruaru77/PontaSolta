@@ -26,8 +26,9 @@ export default function PriorityTasks() {
     );
   }
 
-  // Filter and sort priority tasks (critical = urgent + important)
+  // Filter and sort priority tasks (critical = urgent + important), excluding done tasks
   const priorityTasks = (tasks as any)?.filter((task: TaskWithDetails) => {
+    if (task.status === 'done') return false;
     const isCritical = task.urgency === 'critical' && task.importance === 'high';
     const isUrgent = task.urgency === 'high' || task.urgency === 'critical';
     const isComplex = task.complexity === 'complex';
