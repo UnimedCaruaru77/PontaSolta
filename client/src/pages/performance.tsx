@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip, Legend,
 } from "recharts";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -79,15 +79,17 @@ export default function PerformancePage() {
 
   const saveAllMutation = useMutation({
     mutationFn: async () => {
-      const toSave = Object.entries(effectiveScores);
-      for (const [skillId, score] of toSave) {
+      // Save ALL skills, using local scores or synced scores or default 3
+      for (const skill of skills) {
+        const score = effectiveScores[skill.id] ?? 3;
         await apiRequest("POST", `/api/teams/${selectedTeamId}/evaluations`, {
-          userId: selectedUserId, skillId, score,
+          userId: selectedUserId, skillId: skill.id, score,
         });
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/teams", selectedTeamId, "evaluations", selectedUserId] });
+      setScores({});
       toast({ title: "Avaliações salvas com sucesso" });
     },
     onError: () => toast({ title: "Erro ao salvar avaliações", variant: "destructive" }),
@@ -247,22 +249,35 @@ export default function PerformancePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {skills.map(skill => (
-                  <div key={skill.id} className="flex items-center gap-4">
-                    <div className="w-40 shrink-0">
-                      <p className="text-sm font-medium">{skill.name}</p>
-                      <p className="text-xs text-muted-foreground">{skill.type === "technical" ? "Técnica" : "Comportamental"}</p>
+                {skills.map(skill => {
+                  const current = effectiveScores[skill.id] ?? 3;
+                  const scoreLabels: Record<number, string> = { 1: "Fraco", 2: "Regular", 3: "Bom", 4: "Ótimo", 5: "Excelente" };
+                  return (
+                    <div key={skill.id} className="flex items-center gap-3 flex-wrap">
+                      <div className="w-40 shrink-0">
+                        <p className="text-sm font-medium">{skill.name}</p>
+                        <p className="text-xs text-muted-foreground">{skill.type === "technical" ? "Técnica" : "Comportamental"}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setScores(prev => ({ ...prev, [skill.id]: n }))}
+                            className={`w-9 h-9 rounded-md text-sm font-bold border transition-all ${
+                              current === n
+                                ? "bg-primary text-primary-foreground border-primary shadow-md scale-110"
+                                : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs text-muted-foreground italic">{scoreLabels[current]}</span>
                     </div>
-                    <div className="flex-1">
-                      <Slider
-                        min={1} max={5} step={1}
-                        value={[effectiveScores[skill.id] ?? 3]}
-                        onValueChange={([v]) => setScores(prev => ({ ...prev, [skill.id]: v }))}
-                      />
-                    </div>
-                    <span className="w-6 text-center font-bold text-primary">{effectiveScores[skill.id] ?? 3}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
