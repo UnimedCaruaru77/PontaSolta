@@ -52,10 +52,8 @@ function App() {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <div className="dark">
-            <Toaster />
-            <Router />
-          </div>
+          <Toaster />
+          <Router />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

@@ -98,22 +98,35 @@ const ThemeContext = createContext<ThemeContextValue>({
   currentTheme: THEMES[0],
 });
 
+function applyThemeToDOM(t: ThemeId) {
+  const html = document.documentElement;
+  const info = THEMES.find(th => th.id === t) ?? THEMES[0];
+  if (t === "neon-black") {
+    html.removeAttribute("data-theme");
+  } else {
+    html.setAttribute("data-theme", t);
+  }
+  if (info.dark) {
+    html.classList.add("dark");
+  } else {
+    html.classList.remove("dark");
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(() => {
     try {
-      return (localStorage.getItem(STORAGE_KEY) as ThemeId) || "neon-black";
+      const saved = (localStorage.getItem(STORAGE_KEY) as ThemeId) || "neon-black";
+      applyThemeToDOM(saved);
+      return saved;
     } catch {
+      applyThemeToDOM("neon-black");
       return "neon-black";
     }
   });
 
   useEffect(() => {
-    const html = document.documentElement;
-    if (theme === "neon-black") {
-      html.removeAttribute("data-theme");
-    } else {
-      html.setAttribute("data-theme", theme);
-    }
+    applyThemeToDOM(theme);
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {}
