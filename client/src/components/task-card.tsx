@@ -12,6 +12,7 @@ interface TaskCardProps {
 
 export default function TaskCard({ task }: TaskCardProps) {
   const getPulseClass = () => {
+    if (task.status === 'done') return '';
     if (task.urgency === 'critical' && task.importance === 'high') return 'pulse-critical';
     if (task.urgency === 'high' || task.urgency === 'critical') return 'pulse-urgent';
     if (task.complexity === 'complex') return 'pulse-complex';

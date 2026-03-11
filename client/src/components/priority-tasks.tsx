@@ -36,6 +36,7 @@ export default function PriorityTasks() {
   }).slice(0, 5) || [];
 
   const getTaskPulseClass = (task: TaskWithDetails) => {
+    if (task.status === 'done') return '';
     if (task.urgency === 'critical' && task.importance === 'high') return 'pulse-critical';
     if (task.urgency === 'high' || task.urgency === 'critical') return 'pulse-urgent';
     if (task.complexity === 'complex') return 'pulse-complex';
