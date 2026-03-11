@@ -28,6 +28,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     catch (error: any) { res.status(500).json({ message: "Erro ao buscar usuário" }); }
   });
 
+  app.get('/api/auth/logout', (req: any, res) => {
+    req.logout((err: any) => {
+      if (err) return res.status(500).json({ message: "Erro ao fazer logout" });
+      req.session.destroy(() => {
+        res.redirect('/');
+      });
+    });
+  });
+
   // Dashboard stats
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {

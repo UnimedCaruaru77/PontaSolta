@@ -264,8 +264,16 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
       )
     : [];
 
-  const isOverdue = task?.dueDate && new Date(task.dueDate) < new Date() && task?.status !== 'done';
-  const isRenegotiatedOverdue = task?.status === 'renegotiated' && task?.dueDate && new Date(task.dueDate) < new Date();
+  const isDayOverdue = (dueDate: string | Date | null | undefined) => {
+    if (!dueDate) return false;
+    const dueDay = new Date(dueDate);
+    dueDay.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dueDay < today;
+  };
+  const isOverdue = task?.dueDate && isDayOverdue(task.dueDate) && task?.status !== 'done';
+  const isRenegotiatedOverdue = task?.status === 'renegotiated' && isDayOverdue(task?.dueDate);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

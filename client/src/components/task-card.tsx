@@ -26,9 +26,18 @@ export default function TaskCard({ task }: TaskCardProps) {
     return 'border-border';
   };
 
+  const isDayOverdue = (dueDate: Date | string | null | undefined): boolean => {
+    if (!dueDate) return false;
+    const dueDay = new Date(dueDate);
+    dueDay.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dueDay < today;
+  };
+
   const getPriorityBadge = () => {
     if (task.status === 'renegotiated') {
-      const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+      const isOverdue = isDayOverdue(task.dueDate);
       return (
         <Badge className={cn(
           "text-[10px] px-1.5 py-0",
@@ -101,7 +110,9 @@ export default function TaskCard({ task }: TaskCardProps) {
     const elapsed = now.getTime() - start.getTime();
     const remainingPct = Math.max(0, Math.min(100, (1 - elapsed / total) * 100));
 
-    if (now > end) return { pct: 0, barColor: 'bg-red-500', label: 'SLA vencido' };
+    const endOfDay = new Date(end);
+    endOfDay.setHours(23, 59, 59, 999);
+    if (now > endOfDay) return { pct: 0, barColor: 'bg-red-500', label: 'SLA vencido' };
     if (remainingPct > 50) return { pct: remainingPct, barColor: 'bg-green-500', label: `SLA: ${Math.round(remainingPct)}% restante` };
     if (remainingPct > 25) return { pct: remainingPct, barColor: 'bg-yellow-500', label: `SLA: ${Math.round(remainingPct)}% restante` };
     return { pct: remainingPct, barColor: 'bg-red-500', label: `SLA: ${Math.round(remainingPct)}% restante` };

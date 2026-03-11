@@ -333,7 +333,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Prazo:</span>
                         <span 
-                          className={task.dueDate && new Date(task.dueDate) < new Date() ? "text-red-400" : ""}
+                          className={task.dueDate && (() => { const d = new Date(task.dueDate!); d.setHours(0,0,0,0); const t = new Date(); t.setHours(0,0,0,0); return d < t; })() ? "text-red-400" : ""}
                           data-testid="task-detail-deadline"
                         >
                           {formatDate(task.dueDate)}
