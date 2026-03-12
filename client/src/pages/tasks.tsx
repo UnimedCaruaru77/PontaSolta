@@ -183,7 +183,7 @@ export default function Tasks() {
                       {ALL_STATUSES.map(s => (
                         <button
                           key={s.value}
-                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors text-left"
+                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted transition-colors text-left"
                           onClick={() => toggleStatus(s.value)}
                         >
                           <Checkbox
@@ -197,19 +197,19 @@ export default function Tasks() {
                       ))}
                       <div className="border-t border-border mt-2 pt-2 flex gap-1">
                         <button
-                          className="flex-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 transition-colors"
+                          className="flex-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors"
                           onClick={() => setActiveStatuses(ALL_STATUSES.map(s => s.value))}
                         >
                           Todos
                         </button>
                         <button
-                          className="flex-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 transition-colors"
+                          className="flex-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors"
                           onClick={() => setActiveStatuses(DEFAULT_STATUSES)}
                         >
                           Em aberto
                         </button>
                         <button
-                          className="flex-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 transition-colors"
+                          className="flex-1 text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors"
                           onClick={() => setActiveStatuses([])}
                         >
                           Nenhum

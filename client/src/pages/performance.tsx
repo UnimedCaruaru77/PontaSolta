@@ -267,7 +267,7 @@ export default function PerformancePage() {
                             className={`w-9 h-9 rounded-md text-sm font-bold border transition-all ${
                               current === n
                                 ? "bg-primary text-primary-foreground border-primary shadow-md scale-110"
-                                : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                                : "bg-muted text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                             }`}
                           >
                             {n}
@@ -323,7 +323,7 @@ export default function PerformancePage() {
 
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {skills.map(s => (
-                <div key={s.id} className="flex items-center justify-between p-2 rounded border border-border/50 hover:bg-muted/30">
+                <div key={s.id} className="flex items-center justify-between p-2 rounded border border-border/50 hover:bg-muted">
                   <div>
                     <span className="text-sm font-medium">{s.name}</span>
                     <Badge variant="outline" className="ml-2 text-xs">

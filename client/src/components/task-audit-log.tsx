@@ -112,7 +112,7 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
       </div>
 
       {!logs || logs.length === 0 ? (
-        <Card className="p-6 bg-muted/15 border-border text-center">
+        <Card className="p-6 bg-muted border-border text-center">
           <History className="size-8 mx-auto mb-2 text-primary/50" />
           <p className="text-muted-foreground text-sm">
             Nenhuma alteração registrada ainda.
@@ -130,7 +130,7 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
                 {getActionIcon(log.action)}
               </div>
 
-              <Card className="p-4 bg-muted/20 border-border hover:border-primary/40 transition-all">
+              <Card className="p-4 bg-muted border-border hover:border-primary/40 transition-all">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1">
                     <Avatar className="size-8 border-2 border-primary/30">

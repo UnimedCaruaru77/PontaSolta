@@ -258,7 +258,7 @@ export default function Users() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border hover:bg-muted/30">
+                  <TableRow className="border-border hover:bg-muted">
                     <TableHead className="font-medium">Nome</TableHead>
                     <TableHead className="font-medium">Email</TableHead>
                     <TableHead className="font-medium">Cargo</TableHead>
@@ -270,7 +270,7 @@ export default function Users() {
                   {(allUsers as User[]).map((user: User) => (
                     <TableRow
                       key={user.id}
-                      className="border-border hover:bg-muted/30"
+                      className="border-border hover:bg-muted"
                       data-testid={`user-row-${user.id}`}
                     >
                       <TableCell>
@@ -363,7 +363,7 @@ export default function Users() {
                 value={newUserEmail}
                 onChange={e => setNewUserEmail(e.target.value)}
                 placeholder="usuario@empresa.com"
-                className="bg-muted/30 border-border"
+                className="bg-muted border-border"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -373,7 +373,7 @@ export default function Users() {
                   value={newUserFirstName}
                   onChange={e => setNewUserFirstName(e.target.value)}
                   placeholder="João"
-                  className="bg-muted/30 border-border"
+                  className="bg-muted border-border"
                 />
               </div>
               <div className="space-y-1.5">
@@ -382,14 +382,14 @@ export default function Users() {
                   value={newUserLastName}
                   onChange={e => setNewUserLastName(e.target.value)}
                   placeholder="Silva"
-                  className="bg-muted/30 border-border"
+                  className="bg-muted border-border"
                 />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-foreground/80">Papel</Label>
               <Select value={newUserRole} onValueChange={setNewUserRole}>
-                <SelectTrigger className="bg-muted/30 border-border">
+                <SelectTrigger className="bg-muted border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
@@ -437,7 +437,7 @@ export default function Users() {
                       value={editFirstName}
                       onChange={e => setEditFirstName(e.target.value)}
                       placeholder="João"
-                      className="bg-muted/30 border-border"
+                      className="bg-muted border-border"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -446,7 +446,7 @@ export default function Users() {
                       value={editLastName}
                       onChange={e => setEditLastName(e.target.value)}
                       placeholder="Silva"
-                      className="bg-muted/30 border-border"
+                      className="bg-muted border-border"
                     />
                   </div>
                 </div>
@@ -459,7 +459,7 @@ export default function Users() {
                     onValueChange={setEditRole}
                     disabled={!canEditRole}
                   >
-                    <SelectTrigger className="bg-muted/30 border-border disabled:opacity-50">
+                    <SelectTrigger className="bg-muted border-border disabled:opacity-50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">

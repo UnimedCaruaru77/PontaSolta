@@ -72,7 +72,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
           placeholder="Adicione um comentário..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="min-h-[80px] bg-muted/30 border-border focus:border-primary placeholder:text-muted-foreground"
+          className="min-h-[80px] bg-muted border-border focus:border-primary placeholder:text-muted-foreground"
           disabled={createCommentMutation.isPending}
         />
         <div className="flex justify-end">
@@ -96,7 +96,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
 
       <div className="space-y-3 mt-6">
         {comments.length === 0 ? (
-          <Card className="p-6 bg-muted/15 border-border text-center">
+          <Card className="p-6 bg-muted border-border text-center">
             <MessageSquare className="size-8 mx-auto mb-2 text-primary/50" />
             <p className="text-muted-foreground text-sm">
               Nenhum comentário ainda. Seja o primeiro a comentar!
@@ -107,7 +107,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
             <Card
               key={comment.id}
               data-testid={`comment-${comment.id}`}
-              className="p-4 bg-muted/20 border-border hover:border-primary/40 transition-all"
+              className="p-4 bg-muted border-border hover:border-primary/40 transition-all"
             >
               <div className="flex gap-3">
                 <Avatar className="size-10 border-2 border-primary/50">

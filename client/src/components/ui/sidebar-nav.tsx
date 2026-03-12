@@ -116,7 +116,7 @@ function NotificationBell({ user }: { user?: User | null }) {
                 <div
                   key={n.id}
                   className={cn(
-                    "px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors",
+                    "px-3 py-2.5 cursor-pointer hover:bg-accent transition-colors",
                     !n.read && "bg-primary/5"
                   )}
                   onClick={() => !n.read && markOneMutation.mutate(n.id)}

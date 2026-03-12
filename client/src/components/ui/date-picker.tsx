@@ -61,7 +61,7 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
           variant="outline"
           disabled={disabled}
           className={cn(
-            "h-8 w-full justify-start text-left font-normal text-xs bg-muted/30 border-border hover:bg-muted/50",
+            "h-8 w-full justify-start text-left font-normal text-xs bg-muted border-border hover:bg-accent",
             !value && "text-muted-foreground",
             isOverdue && "border-red-500/60 text-red-400"
           )}
@@ -88,7 +88,7 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
               onChange={handleInputChange}
               onKeyDown={handleInputKeyDown}
               onBlur={() => { setInputMode(false); setInputValue(""); }}
-              className="h-7 text-xs bg-muted/30 border-border"
+              className="h-7 text-xs bg-muted border-border"
               maxLength={10}
             />
           ) : (

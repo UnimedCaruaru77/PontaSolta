@@ -183,7 +183,7 @@ function TeamCard({ team, allUsers }: { team: TeamWithMembers; allUsers: User[] 
                 {team.members.map(member => {
                   const memberIsLead = (member as any).isLead === true;
                   return (
-                    <div key={member.id} className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 ${memberIsLead ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-muted/30'}`}>
+                    <div key={member.id} className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 ${memberIsLead ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-muted'}`}>
                       <Avatar className="size-7">
                         <AvatarImage src={member.profileImageUrl || undefined} />
                         <AvatarFallback className="bg-primary/20 text-primary text-xs">
@@ -288,7 +288,7 @@ function TeamCard({ team, allUsers }: { team: TeamWithMembers; allUsers: User[] 
                 {team.boards.map((board: Board) => (
                   <div
                     key={board.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border hover:border-primary/30 transition-colors group"
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted border border-border hover:border-primary/30 transition-colors group"
                   >
                     <div className="flex items-center gap-2">
                       <Layout className="size-4 text-primary" />

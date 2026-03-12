@@ -86,7 +86,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               placeholder="Buscar por título, número de chamado ou responsável..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="bg-muted/30 border-primary/40 placeholder:text-muted-foreground h-11"
+              className="bg-muted border-primary/40 placeholder:text-muted-foreground h-11"
             />
           </div>
 
@@ -110,7 +110,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                     <button
                       key={task.id}
                       onClick={() => handleSelect(task.id)}
-                      className="w-full text-left p-3 rounded-lg bg-muted/30 border border-border hover:border-primary/60 hover:bg-primary/5 transition-all group"
+                      className="w-full text-left p-3 rounded-lg bg-muted border border-border hover:border-primary/60 hover:bg-accent transition-all group"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
