@@ -186,7 +186,7 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
             </h1>
             <NotificationBell user={user} />
           </div>
-          <p className="text-sm text-muted-foreground mt-1" data-testid="sidebar-version">
+          <p className="text-sm mt-1 text-[var(--sidebar-foreground)]/50" data-testid="sidebar-version">
             v3.5.0
           </p>
         </div>
@@ -194,13 +194,13 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
         {/* Search button */}
         <Button
           variant="outline"
-          className="w-full justify-start gap-2 mb-4 text-muted-foreground border-primary/20 hover:border-primary/50 hover:text-primary hover:bg-primary/5"
+          className="w-full justify-start gap-2 mb-4 text-[var(--sidebar-foreground)]/70 border-[var(--sidebar-border)] hover:border-[var(--sidebar-primary)]/60 hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)]"
           onClick={() => setSearchOpen(true)}
           data-testid="button-global-search"
         >
           <Search className="w-4 h-4" />
           Buscar tarefa...
-          <kbd className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
+          <kbd className="ml-auto text-[10px] bg-[var(--sidebar-accent)] px-1.5 py-0.5 rounded font-mono">⌘K</kbd>
         </Button>
 
         <nav className="space-y-0.5 flex-1 overflow-y-auto" data-testid="sidebar-nav">
@@ -215,8 +215,8 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
                   className={cn(
                     "w-full justify-start px-3 py-2 h-auto",
                     active
-                      ? "bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      ? "bg-[var(--sidebar-accent)] text-[var(--sidebar-accent-foreground)] border border-[var(--sidebar-primary)]/40 hover:bg-[var(--sidebar-accent)]/80"
+                      : "text-[var(--sidebar-foreground)]/75 hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)]"
                   )}
                   data-testid={`nav-${item.path.substring(1) || "dashboard"}`}
                 >
@@ -228,25 +228,25 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
           })}
         </nav>
 
-        <div className="pt-4 border-t border-border mt-2">
-          <div className="bg-card border border-border rounded p-3 mb-3">
+        <div className="pt-4 border-t border-[var(--sidebar-border)] mt-2">
+          <div className="bg-[var(--sidebar-accent)] border border-[var(--sidebar-border)] rounded p-3 mb-3">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center overflow-hidden shrink-0">
+              <div className="w-8 h-8 bg-[var(--sidebar-primary)] rounded-full flex items-center justify-center overflow-hidden shrink-0">
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
                 ) : (
-                  <span className="text-primary-foreground font-semibold text-sm" data-testid="user-initials">
+                  <span className="text-[var(--sidebar-primary-foreground)] font-semibold text-sm" data-testid="user-initials">
                     {getInitials(user)}
                   </span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" data-testid="user-name">
+                <p className="text-sm font-medium truncate text-[var(--sidebar-foreground)]" data-testid="user-name">
                   {user?.firstName && user?.lastName
                     ? `${user.firstName} ${user.lastName}`
                     : user?.email || "Usuário"}
                 </p>
-                <p className="text-xs text-muted-foreground truncate" data-testid="user-role">
+                <p className="text-xs text-[var(--sidebar-foreground)]/60 truncate" data-testid="user-role">
                   {user?.role === 'admin' ? 'Administrador' :
                    user?.role === 'manager' ? 'Gestor' : 'Membro'}
                   {isLead && " · Líder"}
@@ -258,7 +258,7 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
           <Button
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full text-[var(--sidebar-foreground)]/80 border-[var(--sidebar-border)] hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)] hover:border-[var(--sidebar-primary)]/50"
             onClick={handleLogout}
             data-testid="button-logout"
           >
