@@ -72,7 +72,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
           placeholder="Adicione um comentário..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="min-h-[80px] bg-muted border-border focus:border-primary placeholder:text-muted-foreground"
+          className="min-h-[80px] border-border focus:border-primary placeholder:text-muted-foreground"
           disabled={createCommentMutation.isPending}
         />
         <div className="flex justify-end">
