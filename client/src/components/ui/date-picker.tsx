@@ -61,8 +61,8 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
           variant="outline"
           disabled={disabled}
           className={cn(
-            "h-8 w-full justify-start text-left font-normal text-xs bg-black/40 border-primary/30 text-white hover:bg-black/60",
-            !value && "text-gray-500",
+            "h-8 w-full justify-start text-left font-normal text-xs bg-muted/30 border-border hover:bg-muted/50",
+            !value && "text-muted-foreground",
             isOverdue && "border-red-500/60 text-red-400"
           )}
         >
@@ -72,14 +72,14 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
           </span>
           {value && !disabled && (
             <X
-              className="h-3 w-3 ml-1 text-gray-500 hover:text-red-400 shrink-0"
+              className="h-3 w-3 ml-1 text-muted-foreground hover:text-red-400 shrink-0"
               onClick={handleClear}
             />
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-black border-primary/50" align="start">
-        <div className="p-2 border-b border-primary/20">
+      <PopoverContent className="w-auto p-0 bg-popover border-border" align="start">
+        <div className="p-2 border-b border-border">
           {inputMode ? (
             <Input
               autoFocus
@@ -88,14 +88,14 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
               onChange={handleInputChange}
               onKeyDown={handleInputKeyDown}
               onBlur={() => { setInputMode(false); setInputValue(""); }}
-              className="h-7 text-xs bg-black/40 border-primary/30 text-white"
+              className="h-7 text-xs bg-muted/30 border-border"
               maxLength={10}
             />
           ) : (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-full text-xs text-gray-400 hover:text-white"
+              className="h-7 w-full text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setInputMode(true)}
             >
               Digitar data manualmente (dd/mm/aaaa)
@@ -107,11 +107,11 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
           selected={value ?? undefined}
           onSelect={handleCalendarSelect}
           locale={ptBR}
-          className="text-white [&_.rdp-day_button:hover]:bg-primary/20 [&_.rdp-day_button.rdp-day_selected]:bg-primary"
+          className="[&_.rdp-day_button:hover]:bg-primary/20 [&_.rdp-day_button.rdp-day_selected]:bg-primary"
           initialFocus
         />
         {value && (
-          <div className="p-2 border-t border-primary/20">
+          <div className="p-2 border-t border-border">
             <Button
               variant="ghost"
               size="sm"

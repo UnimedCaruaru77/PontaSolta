@@ -178,7 +178,7 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
 
   return (
     <>
-      <div className="w-64 sidebar-gradient border-r border-primary/30 p-6 flex flex-col" data-testid="sidebar">
+      <div className="w-64 sidebar-gradient border-r border-[var(--sidebar-border)] p-6 flex flex-col text-[var(--sidebar-foreground)]" data-testid="sidebar">
         <div className="mb-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-mono font-bold neon-text" data-testid="sidebar-title">

@@ -28,7 +28,7 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
       case 'created': return <Plus className="size-4 text-secondary" />;
       case 'updated': return <Edit className="size-4 text-primary" />;
       case 'deleted': return <Trash2 className="size-4 text-red-400" />;
-      default: return <Edit className="size-4 text-gray-400" />;
+      default: return <Edit className="size-4 text-muted-foreground" />;
     }
   };
 
@@ -112,9 +112,9 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
       </div>
 
       {!logs || logs.length === 0 ? (
-        <Card className="p-6 bg-black/20 border-primary/20 text-center">
+        <Card className="p-6 bg-muted/15 border-border text-center">
           <History className="size-8 mx-auto mb-2 text-primary/50" />
-          <p className="text-gray-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Nenhuma alteração registrada ainda.
           </p>
         </Card>
@@ -126,12 +126,11 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
               data-testid={`audit-log-${log.id}`}
               className="relative pl-12 pb-4"
             >
-              {/* Timeline dot */}
-              <div className="absolute left-3 top-1 size-4 rounded-full bg-black border-2 border-primary flex items-center justify-center">
+              <div className="absolute left-3 top-1 size-4 rounded-full bg-card border-2 border-primary flex items-center justify-center">
                 {getActionIcon(log.action)}
               </div>
 
-              <Card className="p-4 bg-black/30 border-primary/20 hover:border-primary/40 transition-all">
+              <Card className="p-4 bg-muted/20 border-border hover:border-primary/40 transition-all">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1">
                     <Avatar className="size-8 border-2 border-primary/30">
@@ -142,17 +141,17 @@ export function TaskAuditLog({ taskId }: TaskAuditLogProps) {
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-white text-sm">
+                        <span className="font-semibold text-foreground text-sm">
                           {log.user?.firstName} {log.user?.lastName}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(log.createdAt || new Date()), {
                             addSuffix: true,
                             locale: ptBR,
                           })}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-300">
+                      <p className="text-sm text-foreground/80">
                         {getActionLabel(log.action, log.field)}
                       </p>
                       {log.oldValue !== null && log.newValue !== null && (

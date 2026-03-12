@@ -346,53 +346,53 @@ export default function Users() {
 
       {/* New User Dialog */}
       <Dialog open={showNewUserDialog} onOpenChange={setShowNewUserDialog}>
-        <DialogContent className="bg-black/95 border-primary/50 text-white">
+        <DialogContent className="bg-card border-primary/50 text-card-foreground">
           <DialogHeader>
             <DialogTitle className="text-primary flex items-center gap-2">
               <UserPlus className="size-5" />
               Novo Usuário
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">
             Pré-cadastre um usuário pelo email. Ao fazer login pelo Google com este email, o acesso será concedido automaticamente.
           </p>
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-gray-300">Email *</Label>
+              <Label className="text-xs text-foreground/80">Email *</Label>
               <Input
                 value={newUserEmail}
                 onChange={e => setNewUserEmail(e.target.value)}
                 placeholder="usuario@empresa.com"
-                className="bg-black/40 border-primary/30 text-white"
+                className="bg-muted/30 border-border"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-gray-300">Nome</Label>
+                <Label className="text-xs text-foreground/80">Nome</Label>
                 <Input
                   value={newUserFirstName}
                   onChange={e => setNewUserFirstName(e.target.value)}
                   placeholder="João"
-                  className="bg-black/40 border-primary/30 text-white"
+                  className="bg-muted/30 border-border"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-gray-300">Sobrenome</Label>
+                <Label className="text-xs text-foreground/80">Sobrenome</Label>
                 <Input
                   value={newUserLastName}
                   onChange={e => setNewUserLastName(e.target.value)}
                   placeholder="Silva"
-                  className="bg-black/40 border-primary/30 text-white"
+                  className="bg-muted/30 border-border"
                 />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-gray-300">Papel</Label>
+              <Label className="text-xs text-foreground/80">Papel</Label>
               <Select value={newUserRole} onValueChange={setNewUserRole}>
-                <SelectTrigger className="bg-black/40 border-primary/30 text-white">
+                <SelectTrigger className="bg-muted/30 border-border">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-black border-primary/50">
+                <SelectContent className="bg-popover border-border">
                   <SelectItem value="member">Membro</SelectItem>
                   <SelectItem value="manager">Gestor</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
@@ -417,7 +417,7 @@ export default function Users() {
 
       {/* Edit User Dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => { if (!open) setEditingUser(null); }}>
-        <DialogContent className="bg-black/95 border-primary/50 text-white">
+        <DialogContent className="bg-card border-primary/50 text-card-foreground">
           <DialogHeader>
             <DialogTitle className="text-primary flex items-center gap-2">
               <Settings className="size-5" />
@@ -426,32 +426,32 @@ export default function Users() {
           </DialogHeader>
           {editingUser && (
             <>
-              <p className="text-xs text-gray-400">
-                Editando: <span className="text-white font-medium">{editingUser.email}</span>
+              <p className="text-xs text-muted-foreground">
+                Editando: <span className="text-foreground font-medium">{editingUser.email}</span>
               </p>
               <div className="space-y-4 mt-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-gray-300">Nome</Label>
+                    <Label className="text-xs text-foreground/80">Nome</Label>
                     <Input
                       value={editFirstName}
                       onChange={e => setEditFirstName(e.target.value)}
                       placeholder="João"
-                      className="bg-black/40 border-primary/30 text-white"
+                      className="bg-muted/30 border-border"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-gray-300">Sobrenome</Label>
+                    <Label className="text-xs text-foreground/80">Sobrenome</Label>
                     <Input
                       value={editLastName}
                       onChange={e => setEditLastName(e.target.value)}
                       placeholder="Silva"
-                      className="bg-black/40 border-primary/30 text-white"
+                      className="bg-muted/30 border-border"
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-gray-300">
+                  <Label className="text-xs text-foreground/80">
                     Papel {!canEditRole && <span className="text-yellow-500">(apenas Admin pode alterar)</span>}
                   </Label>
                   <Select
@@ -459,10 +459,10 @@ export default function Users() {
                     onValueChange={setEditRole}
                     disabled={!canEditRole}
                   >
-                    <SelectTrigger className="bg-black/40 border-primary/30 text-white disabled:opacity-50">
+                    <SelectTrigger className="bg-muted/30 border-border disabled:opacity-50">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-black border-primary/50">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="member">Membro</SelectItem>
                       <SelectItem value="manager">Gestor</SelectItem>
                       <SelectItem value="admin">Administrador</SelectItem>

@@ -72,7 +72,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   return (
     <>
       <Dialog open={open && !selectedTaskId} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl bg-black/95 border-2 border-primary/50 text-white p-0 gap-0">
+        <DialogContent className="max-w-2xl bg-card border-2 border-primary/50 text-card-foreground p-0 gap-0">
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="text-primary flex items-center gap-2">
               <Search className="size-5" />
@@ -86,7 +86,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               placeholder="Buscar por título, número de chamado ou responsável..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="bg-black/40 border-primary/40 text-white placeholder:text-muted-foreground h-11"
+              className="bg-muted/30 border-primary/40 placeholder:text-muted-foreground h-11"
             />
           </div>
 
@@ -110,12 +110,12 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                     <button
                       key={task.id}
                       onClick={() => handleSelect(task.id)}
-                      className="w-full text-left p-3 rounded-lg bg-black/40 border border-primary/20 hover:border-primary/60 hover:bg-primary/5 transition-all group"
+                      className="w-full text-left p-3 rounded-lg bg-muted/30 border border-border hover:border-primary/60 hover:bg-primary/5 transition-all group"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-medium text-sm text-white group-hover:text-primary transition-colors truncate">
+                            <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
                               {task.title}
                             </span>
                             {task.status === 'done' && (

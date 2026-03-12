@@ -66,14 +66,13 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
         </h3>
       </div>
 
-      {/* Comment Form */}
       <form onSubmit={handleSubmit} className="space-y-3">
         <Textarea
           data-testid="textarea-comment"
           placeholder="Adicione um comentário..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          className="min-h-[80px] bg-black/40 border-primary/30 focus:border-primary text-white placeholder:text-gray-500"
+          className="min-h-[80px] bg-muted/30 border-border focus:border-primary placeholder:text-muted-foreground"
           disabled={createCommentMutation.isPending}
         />
         <div className="flex justify-end">
@@ -81,7 +80,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
             data-testid="button-add-comment"
             type="submit"
             disabled={!content.trim() || createCommentMutation.isPending}
-            className="bg-primary hover:bg-primary/80 text-black font-semibold"
+            className="bg-primary hover:bg-primary/80 text-primary-foreground font-semibold"
           >
             {createCommentMutation.isPending ? (
               "Enviando..."
@@ -95,12 +94,11 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
         </div>
       </form>
 
-      {/* Comments List */}
       <div className="space-y-3 mt-6">
         {comments.length === 0 ? (
-          <Card className="p-6 bg-black/20 border-primary/20 text-center">
+          <Card className="p-6 bg-muted/15 border-border text-center">
             <MessageSquare className="size-8 mx-auto mb-2 text-primary/50" />
-            <p className="text-gray-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Nenhum comentário ainda. Seja o primeiro a comentar!
             </p>
           </Card>
@@ -109,7 +107,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
             <Card
               key={comment.id}
               data-testid={`comment-${comment.id}`}
-              className="p-4 bg-black/30 border-primary/20 hover:border-primary/40 transition-all"
+              className="p-4 bg-muted/20 border-border hover:border-primary/40 transition-all"
             >
               <div className="flex gap-3">
                 <Avatar className="size-10 border-2 border-primary/50">
@@ -123,13 +121,13 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <span
                       data-testid={`comment-author-${comment.id}`}
-                      className="font-semibold text-white"
+                      className="font-semibold text-foreground"
                     >
                       {comment.user?.firstName} {comment.user?.lastName}
                     </span>
                     <span
                       data-testid={`comment-time-${comment.id}`}
-                      className="text-xs text-gray-500"
+                      className="text-xs text-muted-foreground"
                     >
                       {formatDistanceToNow(new Date(comment.createdAt || new Date()), {
                         addSuffix: true,
@@ -139,7 +137,7 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
                   </div>
                   <p
                     data-testid={`comment-content-${comment.id}`}
-                    className="text-gray-300 text-sm whitespace-pre-wrap"
+                    className="text-foreground/80 text-sm whitespace-pre-wrap"
                   >
                     {comment.content}
                   </p>

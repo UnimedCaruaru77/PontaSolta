@@ -78,7 +78,7 @@ export const THEMES: ThemeInfo[] = [
     label: "Unimed",
     description: "Cores Unimed — verde corporativo claro",
     dark: false,
-    colors: { bg: "#f5f5f5", primary: "#00954a", accent: "#007a3d", sidebar: "#007a3d" },
+    colors: { bg: "#f5f5f5", primary: "#00954a", accent: "#f58a07", sidebar: "#007a3d" },
   },
 ];
 

@@ -59,7 +59,7 @@ function getStatusBadgeClass(status: string) {
   if (status === 'renegotiated') return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
   if (status === 'in_progress') return 'bg-blue-500/20 text-blue-400 border-blue-500/40';
   if (status === 'review') return 'bg-purple-500/20 text-purple-400 border-purple-500/40';
-  return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
+  return 'bg-gray-500/20 text-muted-foreground border-gray-500/40';
 }
 
 export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: TaskDetailsModalProps) {
@@ -239,7 +239,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
     u === 'critical' ? 'text-red-400 bg-red-500/20 border-red-500/50' :
     u === 'high' ? 'text-orange-400 bg-orange-500/20 border-orange-500/50' :
     u === 'medium' ? 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50' :
-    'text-gray-400 bg-gray-500/20 border-gray-500/50';
+    'text-muted-foreground bg-gray-500/20 border-gray-500/50';
 
   const calculateProgress = () => {
     if (!task || task.subtasks.length === 0) return 0;
@@ -277,7 +277,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-black/95 border-2 border-primary/50 text-white">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card border-2 border-primary/50 text-card-foreground">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-primary flex items-center gap-3 flex-wrap">
             <FileText className="size-5 shrink-0" />
@@ -302,7 +302,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
           </div>
         ) : task ? (
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-black/40">
+            <TabsList className="grid w-full grid-cols-3 bg-muted/50">
               <TabsTrigger value="details" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
                 Detalhes
               </TabsTrigger>
@@ -319,8 +319,8 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
             <TabsContent value="details" className="space-y-5 mt-5">
               {/* Status + Priority + Urgency + Complexity */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-black/40 p-3 rounded border border-primary/20">
-                  <p className="text-xs text-gray-400 mb-2">Status</p>
+                <div className="bg-muted/30 p-3 rounded border border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Status</p>
                   <Select
                     value={task.status}
                     onValueChange={v => updateMutation.mutate({ status: v })}
@@ -329,7 +329,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                     <SelectTrigger className={`h-8 text-xs border ${getStatusBadgeClass(task.status)}`}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-black border-primary/50">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="todo">A Fazer</SelectItem>
                       <SelectItem value="in_progress">Em Progresso</SelectItem>
                       <SelectItem value="review">Em Revisão</SelectItem>
@@ -346,7 +346,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                         </p>
                       )}
                       {task.lastRenegotiatedAt && (
-                        <p className="text-[10px] text-gray-500">
+                        <p className="text-[10px] text-muted-foreground/70">
                           Última: {new Date(task.lastRenegotiatedAt).toLocaleDateString('pt-BR')}
                         </p>
                       )}
@@ -359,8 +359,8 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                   )}
                 </div>
 
-                <div className="bg-black/40 p-3 rounded border border-primary/20">
-                  <p className="text-xs text-gray-400 mb-2">Prioridade</p>
+                <div className="bg-muted/30 p-3 rounded border border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Prioridade</p>
                   <Select
                     value={task.priority}
                     onValueChange={v => updateMutation.mutate({ priority: v })}
@@ -369,7 +369,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                     <SelectTrigger className={`h-8 text-xs border ${getPriorityColor(task.priority)}`}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-black border-primary/50">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="low">Baixa</SelectItem>
                       <SelectItem value="medium">Média</SelectItem>
                       <SelectItem value="high">Alta</SelectItem>
@@ -377,8 +377,8 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                   </Select>
                 </div>
 
-                <div className="bg-black/40 p-3 rounded border border-primary/20">
-                  <p className="text-xs text-gray-400 mb-2">Urgência</p>
+                <div className="bg-muted/30 p-3 rounded border border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Urgência</p>
                   <Select
                     value={task.urgency}
                     onValueChange={v => updateMutation.mutate({ urgency: v })}
@@ -387,7 +387,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                     <SelectTrigger className={`h-8 text-xs border ${getUrgencyColor(task.urgency)}`}>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-black border-primary/50">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="low">Baixa</SelectItem>
                       <SelectItem value="medium">Média</SelectItem>
                       <SelectItem value="high">Alta</SelectItem>
@@ -396,17 +396,17 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                   </Select>
                 </div>
 
-                <div className="bg-black/40 p-3 rounded border border-primary/20">
-                  <p className="text-xs text-gray-400 mb-2">Complexidade</p>
+                <div className="bg-muted/30 p-3 rounded border border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Complexidade</p>
                   <Select
                     value={task.complexity}
                     onValueChange={v => updateMutation.mutate({ complexity: v })}
                     disabled={updateMutation.isPending}
                   >
-                    <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30">
+                    <SelectTrigger className="h-8 text-xs bg-muted/30 border-border">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-black border-primary/50">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="simple">Simples</SelectItem>
                       <SelectItem value="medium">Média</SelectItem>
                       <SelectItem value="complex">Complexa</SelectItem>
@@ -443,17 +443,17 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
               {/* Description */}
               {task.description && (
-                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <div className="bg-muted/30 p-4 rounded border border-border">
                   <h4 className="text-sm font-semibold text-primary mb-2 flex items-center gap-2">
                     <FileText className="size-4" /> Descrição
                   </h4>
-                  <p className="text-gray-300 whitespace-pre-wrap text-sm">{task.description}</p>
+                  <p className="text-foreground/80 whitespace-pre-wrap text-sm">{task.description}</p>
                 </div>
               )}
 
               {/* Assignee + Dates */}
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <div className="bg-muted/30 p-4 rounded border border-border">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                     <User className="size-4" /> Responsável Principal
                   </h4>
@@ -470,7 +470,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                           <p className="text-sm font-medium">
                             {task.assignee.firstName} {task.assignee.lastName}
                           </p>
-                          <p className="text-xs text-gray-400">{task.assignee.email}</p>
+                          <p className="text-xs text-muted-foreground">{task.assignee.email}</p>
                         </div>
                       </div>
                     )}
@@ -479,10 +479,10 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                       onValueChange={v => updateMutation.mutate({ assigneeId: v === 'none' ? null : v })}
                       disabled={updateMutation.isPending}
                     >
-                      <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30">
+                      <SelectTrigger className="h-8 text-xs bg-muted/30 border-border">
                         <SelectValue placeholder="Alterar responsável..." />
                       </SelectTrigger>
-                      <SelectContent className="bg-black border-primary/50">
+                      <SelectContent className="bg-popover border-border">
                         <SelectItem value="none">Nenhum responsável</SelectItem>
                         {currentUser && (
                           <SelectItem value={currentUser.id}>
@@ -505,13 +505,13 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                 </div>
 
                 {/* Dates with DatePicker */}
-                <div className="bg-black/40 p-4 rounded border border-primary/20 space-y-3">
+                <div className="bg-muted/30 p-4 rounded border border-border space-y-3">
                   <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
                     <Calendar className="size-4" /> Prazos
                   </h4>
 
                   <div className="space-y-1.5">
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="size-3" /> Data de início
                     </p>
                     <DatePicker
@@ -523,7 +523,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                   </div>
 
                   <div className="space-y-1.5">
-                    <p className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-gray-400'}`}>
+                    <p className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-400' : 'text-muted-foreground'}`}>
                       <AlertTriangle className="size-3" />
                       {isOverdue ? 'Prazo vencido — repactue abaixo' : 'Prazo final'}
                     </p>
@@ -544,7 +544,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                   {task.completedAt && (
                     <div className="flex items-center gap-2 text-sm pt-1 border-t border-primary/10">
                       <CheckCircle2 className="size-4 text-green-400 shrink-0" />
-                      <span className="text-gray-400 text-xs">Concluído em:</span>
+                      <span className="text-muted-foreground text-xs">Concluído em:</span>
                       <span className="text-green-400 text-xs">{new Date(task.completedAt).toLocaleDateString('pt-BR')}</span>
                     </div>
                   )}
@@ -556,12 +556,12 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                     return (
                       <div className="pt-2 border-t border-primary/10">
                         <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <Gauge className="size-3" /> SLA — {task.ticketNumber}
                           </p>
                           <span className={`text-xs font-semibold ${sla.textColor}`}>{sla.status}</span>
                         </div>
-                        <div className="w-full h-2.5 bg-black/50 rounded-full overflow-hidden border border-white/10">
+                        <div className="w-full h-2.5 bg-muted/40 rounded-full overflow-hidden border border-border">
                           <div
                             className={`h-full rounded-full transition-all ${sla.barColor}`}
                             style={{ width: `${sla.pct}%` }}
@@ -577,11 +577,11 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
               {/* Team Transfer + Sharing with assignees */}
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Transfer team */}
-                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <div className="bg-muted/30 p-4 rounded border border-border">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                     <ArrowRightLeft className="size-4" /> Equipe Responsável
                   </h4>
-                  <p className="text-xs text-gray-400 mb-3">
+                  <p className="text-xs text-muted-foreground mb-3">
                     Transferir para outra equipe remove o responsável e o quadro atual.
                   </p>
                   <Select
@@ -592,10 +592,10 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                     }}
                     disabled={updateMutation.isPending}
                   >
-                    <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30">
+                    <SelectTrigger className="h-8 text-xs bg-muted/30 border-border">
                       <SelectValue placeholder="Sem equipe" />
                     </SelectTrigger>
-                    <SelectContent className="bg-black border-primary/50">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="none">Sem equipe</SelectItem>
                       {(allTeams as Team[]).map(t => (
                         <SelectItem key={t.id} value={t.id}>
@@ -612,25 +612,25 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                 </div>
 
                 {/* Share with teams + assignee per team */}
-                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <div className="bg-muted/30 p-4 rounded border border-border">
                   <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                     <Share2 className="size-4" /> Responsabilidade Compartilhada
                   </h4>
-                  <p className="text-xs text-gray-400 mb-3">
+                  <p className="text-xs text-muted-foreground mb-3">
                     Compartilhe e designe um responsável de cada equipe parceira.
                   </p>
 
                   {/* Current shared teams */}
                   <div className="space-y-2 mb-3">
                     {(task.sharedTeams || []).length === 0 ? (
-                      <span className="text-xs text-gray-500">Nenhuma equipe ainda</span>
+                      <span className="text-xs text-muted-foreground/70">Nenhuma equipe ainda</span>
                     ) : (
                       (task.sharedTeams as SharedTeamWithAssignee[]).map(t => {
                         // Get members of this shared team from allTeams
                         const teamObj = (allTeams as any[]).find((tm: any) => tm.id === t.id);
                         const members: UserType[] = teamObj?.members || [];
                         return (
-                          <div key={t.id} className="bg-black/30 rounded border border-primary/10 p-2 space-y-1.5">
+                          <div key={t.id} className="bg-muted/20 rounded border border-border/50 p-2 space-y-1.5">
                             <div className="flex items-center justify-between">
                               <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
                                 <Users className="size-3 mr-1" />
@@ -639,7 +639,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                               <button
                                 onClick={() => unshareMutation.mutate(t.id)}
                                 disabled={unshareMutation.isPending}
-                                className="text-gray-500 hover:text-red-400 transition-colors"
+                                className="text-muted-foreground/70 hover:text-red-400 transition-colors"
                               >
                                 <X className="size-3" />
                               </button>
@@ -662,10 +662,10 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                                 })}
                                 disabled={setShareAssigneeMutation.isPending}
                               >
-                                <SelectTrigger className="h-7 text-[11px] bg-black/40 border-primary/20 flex-1">
+                                <SelectTrigger className="h-7 text-[11px] bg-muted/30 border-border flex-1">
                                   <SelectValue placeholder="Atribuir responsável..." />
                                 </SelectTrigger>
-                                <SelectContent className="bg-black border-primary/50">
+                                <SelectContent className="bg-popover border-border">
                                   <SelectItem value="none">Sem responsável</SelectItem>
                                   {members.map(m => (
                                     <SelectItem key={m.id} value={m.id}>
@@ -690,11 +690,11 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                       onValueChange={v => { if (v) shareMutation.mutate(v); }}
                       disabled={shareMutation.isPending}
                     >
-                      <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30">
+                      <SelectTrigger className="h-8 text-xs bg-muted/30 border-border">
                         <Plus className="size-3 mr-1" />
                         <SelectValue placeholder="Adicionar equipe..." />
                       </SelectTrigger>
-                      <SelectContent className="bg-black border-primary/50">
+                      <SelectContent className="bg-popover border-border">
                         {availableToShare.map(t => (
                           <SelectItem key={t.id} value={t.id}>
                             {t.name}
@@ -707,7 +707,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
               </div>
 
               {/* Dependencies */}
-              <div className="bg-black/40 p-4 rounded border border-primary/20">
+              <div className="bg-muted/30 p-4 rounded border border-border">
                 <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                   <GitFork className="size-4" /> Dependências
                 </h4>
@@ -715,18 +715,18 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                 {/* Blocked by */}
                 {(task.dependencies || []).length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                       <Lock className="size-3" /> Esta tarefa aguarda:
                     </p>
                     <div className="space-y-1.5">
                       {(task.dependencies as TaskSummary[]).map(dep => (
-                        <div key={dep.id} className="flex items-center justify-between bg-black/30 rounded border border-red-500/20 p-2">
+                        <div key={dep.id} className="flex items-center justify-between bg-muted/20 rounded border border-red-500/20 p-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <Badge className={`text-[10px] shrink-0 ${getStatusBadgeClass(dep.status)}`}>
                               {getStatusLabel(dep.status)}
                             </Badge>
                             <button
-                              className="text-xs text-gray-300 hover:text-primary truncate text-left"
+                              className="text-xs text-foreground/80 hover:text-primary truncate text-left"
                               onClick={() => dep.id && onTaskClick && onTaskClick(dep.id)}
                             >
                               {dep.ticketNumber && <span className="text-blue-400 font-mono mr-1">{dep.ticketNumber}</span>}
@@ -736,7 +736,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                           <button
                             onClick={() => removeDepMutation.mutate(dep.id)}
                             disabled={removeDepMutation.isPending}
-                            className="text-gray-500 hover:text-red-400 transition-colors shrink-0 ml-2"
+                            className="text-muted-foreground/70 hover:text-red-400 transition-colors shrink-0 ml-2"
                           >
                             <X className="size-3" />
                           </button>
@@ -749,17 +749,17 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                 {/* Dependents (tasks that depend on this) */}
                 {(task.dependents || []).length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs text-gray-400 mb-2">
+                    <p className="text-xs text-muted-foreground mb-2">
                       Ao concluir esta tarefa, desbloqueia:
                     </p>
                     <div className="space-y-1.5">
                       {(task.dependents as TaskSummary[]).map(dep => (
-                        <div key={dep.id} className="flex items-center gap-2 bg-black/30 rounded border border-green-500/20 p-2">
+                        <div key={dep.id} className="flex items-center gap-2 bg-muted/20 rounded border border-green-500/20 p-2">
                           <Badge className={`text-[10px] shrink-0 ${getStatusBadgeClass(dep.status)}`}>
                             {getStatusLabel(dep.status)}
                           </Badge>
                           <button
-                            className="text-xs text-gray-300 hover:text-primary truncate text-left"
+                            className="text-xs text-foreground/80 hover:text-primary truncate text-left"
                             onClick={() => dep.id && onTaskClick && onTaskClick(dep.id)}
                           >
                             {dep.ticketNumber && <span className="text-blue-400 font-mono mr-1">{dep.ticketNumber}</span>}
@@ -773,15 +773,15 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
                 {/* Add dependency */}
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-400">Adicionar dependência (esta tarefa aguarda outra):</p>
+                  <p className="text-xs text-muted-foreground">Adicionar dependência (esta tarefa aguarda outra):</p>
                   <Input
                     placeholder="Buscar tarefa por título ou número..."
                     value={depSearch}
                     onChange={e => setDepSearch(e.target.value)}
-                    className="h-8 text-xs bg-black/40 border-primary/30 text-white"
+                    className="h-8 text-xs bg-muted/30 border-border text-foreground"
                   />
                   {filteredDeps.length > 0 && (
-                    <div className="max-h-36 overflow-y-auto space-y-1 border border-primary/20 rounded p-1 bg-black/20">
+                    <div className="max-h-36 overflow-y-auto space-y-1 border border-primary/20 rounded p-1 bg-muted/15">
                       {filteredDeps.slice(0, 8).map(t => (
                         <button
                           key={t.id}
@@ -801,20 +801,20 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                     </div>
                   )}
                   {depSearch.trim().length > 1 && filteredDeps.length === 0 && (
-                    <p className="text-xs text-gray-500">Nenhuma tarefa encontrada</p>
+                    <p className="text-xs text-muted-foreground/70">Nenhuma tarefa encontrada</p>
                   )}
                 </div>
               </div>
 
               {/* Tags / Etiquetas */}
-              <div className="bg-black/40 p-4 rounded border border-primary/20">
+              <div className="bg-muted/30 p-4 rounded border border-border">
                 <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
                   <Tag className="size-4" /> Etiquetas
                 </h4>
 
                 <div className="flex flex-wrap gap-1.5 mb-3 min-h-[24px]">
                   {(task.tags || []).length === 0 ? (
-                    <span className="text-xs text-gray-500">Nenhuma etiqueta</span>
+                    <span className="text-xs text-muted-foreground/70">Nenhuma etiqueta</span>
                   ) : (
                     (task.tags || []).map(tag => (
                       <span
@@ -846,11 +846,11 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                           onValueChange={v => { if (v) addTagMutation.mutate(v); }}
                           disabled={addTagMutation.isPending}
                         >
-                          <SelectTrigger className="h-8 text-xs bg-black/40 border-primary/30 w-48">
+                          <SelectTrigger className="h-8 text-xs bg-muted/30 border-border w-48">
                             <Plus className="size-3 mr-1" />
                             <SelectValue placeholder="Adicionar etiqueta..." />
                           </SelectTrigger>
-                          <SelectContent className="bg-black border-primary/50">
+                          <SelectContent className="bg-popover border-border">
                             {available.map(t => (
                               <SelectItem key={t.id} value={t.id}>
                                 <span className="flex items-center gap-2">
@@ -884,7 +884,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                       placeholder="Nome da etiqueta"
                       value={newTagName}
                       onChange={e => setNewTagName(e.target.value)}
-                      className="h-8 text-xs bg-black/40 border-primary/30 text-white w-40"
+                      className="h-8 text-xs bg-muted/30 border-border text-foreground w-40"
                     />
                     <input
                       type="color"
@@ -915,25 +915,25 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
               {/* Subtasks */}
               {task.subtasks && task.subtasks.length > 0 && (
-                <div className="bg-black/40 p-4 rounded border border-primary/20">
+                <div className="bg-muted/30 p-4 rounded border border-border">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
                       <CheckSquare className="size-4" />
                       Subtarefas ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
                     </h4>
-                    <span className="text-xs text-gray-400">{calculateProgress()}%</span>
+                    <span className="text-xs text-muted-foreground">{calculateProgress()}%</span>
                   </div>
                   <Progress value={calculateProgress()} className="mb-3 h-1.5" />
                   <div className="space-y-1.5">
                     {task.subtasks.map(subtask => (
-                      <div key={subtask.id} className="flex items-center gap-2 p-2 rounded bg-black/20 border border-primary/10 text-sm">
+                      <div key={subtask.id} className="flex items-center gap-2 p-2 rounded bg-muted/15 border border-primary/10 text-sm">
                         <input
                           type="checkbox"
                           checked={!!subtask.completed}
                           readOnly
                           className="size-4 rounded border-primary/50"
                         />
-                        <span className={subtask.completed ? 'line-through text-gray-500' : ''}>
+                        <span className={subtask.completed ? 'line-through text-muted-foreground/70' : ''}>
                           {subtask.title}
                         </span>
                       </div>
@@ -952,9 +952,9 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
               )}
 
               {/* Metadata */}
-              <div className="bg-black/40 p-3 rounded border border-primary/20 text-xs text-gray-400 space-y-1">
-                <p>Criado por: <span className="text-white">{task.creator.firstName} {task.creator.lastName || task.creator.email}</span></p>
-                <p>Criado em: <span className="text-white">{new Date(task.createdAt || new Date()).toLocaleDateString('pt-BR')} às {new Date(task.createdAt || new Date()).toLocaleTimeString('pt-BR')}</span></p>
+              <div className="bg-muted/30 p-3 rounded border border-border text-xs text-muted-foreground space-y-1">
+                <p>Criado por: <span className="text-foreground">{task.creator.firstName} {task.creator.lastName || task.creator.email}</span></p>
+                <p>Criado em: <span className="text-foreground">{new Date(task.createdAt || new Date()).toLocaleDateString('pt-BR')} às {new Date(task.createdAt || new Date()).toLocaleTimeString('pt-BR')}</span></p>
                 <p>Atualizado: {formatDistanceToNow(new Date(task.updatedAt || new Date()), { addSuffix: true, locale: ptBR })}</p>
               </div>
             </TabsContent>
