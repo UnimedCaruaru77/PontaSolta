@@ -228,8 +228,6 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
     return { pct: remainingPct, barColor: 'bg-red-500', textColor: 'text-red-400', label: `${Math.round(remainingPct)}% restante`, status: 'Crítico' };
   };
 
-  if (!task && !isLoading) return null;
-
   const getPriorityColor = (p: string) =>
     p === 'high' ? 'text-red-400 bg-red-500/20 border-red-500/50' :
     p === 'medium' ? 'text-yellow-400 bg-yellow-500/20 border-yellow-500/50' :

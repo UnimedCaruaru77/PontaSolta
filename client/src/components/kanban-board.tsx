@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import TaskCard from "./task-card";
@@ -22,6 +22,7 @@ export default function KanbanBoard() {
   const [selectedPriority, setSelectedPriority] = useState('');
   const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const draggingRef = useRef(false);
   const { toast } = useToast();
 
   const { data: teams = [] } = useQuery<TeamWithMembers[]>({
@@ -99,8 +100,13 @@ export default function KanbanBoard() {
     applyFilters((tasks as TaskWithDetails[])?.filter(t => t.status === status) || []);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    draggingRef.current = true;
     e.dataTransfer.setData("text/plain", taskId);
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setTimeout(() => { draggingRef.current = false; }, 0);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -281,7 +287,8 @@ export default function KanbanBoard() {
                           key={task.id}
                           draggable
                           onDragStart={e => handleDragStart(e, task.id)}
-                          onClick={() => setSelectedTaskId(task.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => { if (!draggingRef.current) setSelectedTaskId(task.id); }}
                           className="cursor-pointer"
                           data-testid={`kanban-task-${task.id}`}
                         >
