@@ -29,7 +29,6 @@ export default function TeamActivity() {
     );
   }
 
-  // Get recent activities (recently completed or recently created/updated tasks)
   const recentTasks = (tasks as any)?.slice(0, 5) || [];
 
   const formatTimeAgo = (date: Date | string) => {
@@ -47,49 +46,33 @@ export default function TeamActivity() {
   };
 
   const getInitials = (firstName?: string | null, lastName?: string | null, email?: string | null) => {
-    if (firstName && lastName) {
-      return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
-    }
-    if (firstName) {
-      return firstName.charAt(0).toUpperCase();
-    }
-    if (email) {
-      return email.charAt(0).toUpperCase();
-    }
+    if (firstName && lastName) return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+    if (firstName) return firstName.charAt(0).toUpperCase();
+    if (email) return email.charAt(0).toUpperCase();
     return "U";
   };
 
   const getUserName = (firstName?: string | null, lastName?: string | null, email?: string | null) => {
-    if (firstName && lastName) {
-      return `${firstName} ${lastName}`;
-    }
-    if (firstName) {
-      return firstName;
-    }
-    if (email) {
-      return email;
-    }
+    if (firstName && lastName) return `${firstName} ${lastName}`;
+    if (firstName) return firstName;
+    if (email) return email;
     return "Usuário";
   };
 
   const getActivityDescription = (task: TaskWithDetails) => {
-    if (task.status === 'done') {
-      return `concluiu a tarefa "${task.title}"`;
-    }
-    if (task.status === 'in_progress') {
-      return `moveu a tarefa "${task.title}" para Em Progresso`;
-    }
+    if (task.status === 'done') return `concluiu a tarefa "${task.title}"`;
+    if (task.status === 'in_progress') return `moveu a tarefa "${task.title}" para Em Progresso`;
     return `criou a tarefa "${task.title}"`;
   };
 
-  const getAvatarColor = (status: string) => {
+  const getAvatarClasses = (status: string) => {
     switch (status) {
       case 'done':
-        return 'bg-secondary';
+        return { avatar: 'bg-secondary', fallback: 'text-secondary-foreground' };
       case 'in_progress':
-        return 'bg-primary';
+        return { avatar: 'bg-primary', fallback: 'text-primary-foreground' };
       default:
-        return 'bg-muted';
+        return { avatar: 'bg-muted', fallback: 'text-muted-foreground' };
     }
   };
 
@@ -108,16 +91,17 @@ export default function TeamActivity() {
             const user = task.assignee || task.creator;
             const initials = getInitials(user?.firstName, user?.lastName, user?.email);
             const userName = getUserName(user?.firstName, user?.lastName, user?.email);
+            const { avatar, fallback } = getAvatarClasses(task.status);
 
             return (
-              <div 
+              <div
                 key={task.id}
                 className="flex items-start space-x-3"
                 data-testid={`activity-${task.id}`}
               >
-                <Avatar className={`w-8 h-8 ${getAvatarColor(task.status)}`}>
-                  <AvatarFallback 
-                    className="text-xs font-semibold text-background"
+                <Avatar className={`w-8 h-8 ${avatar}`}>
+                  <AvatarFallback
+                    className={`text-xs font-semibold ${fallback}`}
                     data-testid={`avatar-${task.id}`}
                   >
                     {initials}

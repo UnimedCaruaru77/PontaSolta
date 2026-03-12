@@ -193,8 +193,8 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
 
         {/* Search button */}
         <Button
-          variant="outline"
-          className="w-full justify-start gap-2 mb-4 text-[var(--sidebar-foreground)]/70 border-[var(--sidebar-border)] hover:border-[var(--sidebar-primary)]/60 hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)]"
+          variant="ghost"
+          className="w-full justify-start gap-2 mb-4 bg-transparent border border-[var(--sidebar-border)] text-[var(--sidebar-foreground)]/70 hover:border-[var(--sidebar-primary)]/60 hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)]"
           onClick={() => setSearchOpen(true)}
           data-testid="button-global-search"
         >
@@ -256,9 +256,9 @@ export default function SidebarNav({ user, currentPath }: SidebarNavProps) {
           </div>
 
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="w-full text-[var(--sidebar-foreground)]/80 border-[var(--sidebar-border)] hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)] hover:border-[var(--sidebar-primary)]/50"
+            className="w-full text-[var(--sidebar-foreground)]/80 border border-[var(--sidebar-border)] bg-transparent hover:text-[var(--sidebar-primary)] hover:bg-[var(--sidebar-accent)] hover:border-[var(--sidebar-primary)]/50"
             onClick={handleLogout}
             data-testid="button-logout"
           >
