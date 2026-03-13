@@ -32,7 +32,7 @@ export default function Landing() {
                 PONTA SOLTA
               </h1>
               <p className="text-muted-foreground text-sm" data-testid="app-subtitle">
-                Sistema de Tarefas Futurista
+                Sistema de Gerenciamento de Tarefas e Equipes
               </p>
             </div>
 
