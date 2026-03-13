@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DayPicker } from "react-day-picker";
 import { ptBR } from "date-fns/locale";
-import { format, isSameDay, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import { Plus, Pencil, Trash2, CalendarDays, MapPin, Clock } from "lucide-react";
+import { format, isSameDay, startOfMonth, endOfMonth } from "date-fns";
+import { Plus, Pencil, Trash2, MapPin, Clock, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -15,22 +15,23 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { TeamEvent, TeamWithMembers } from "@shared/schema";
+import TaskModal, { type InitialTaskData } from "@/components/task-modal";
 
 import "react-day-picker/dist/style.css";
 
 function EventDialog({
-  open, onOpenChange, event, teamId, onSaved,
+  open, onOpenChange, event, teamId, onSaved, onConvertToTask,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   event?: TeamEvent | null;
   teamId: string;
   onSaved: () => void;
+  onConvertToTask?: (data: InitialTaskData) => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -64,6 +65,17 @@ function EventDialog({
     },
   });
 
+  const handleConvertToTask = () => {
+    onOpenChange(false);
+    onConvertToTask?.({
+      title: title || "",
+      description: description || "",
+      startDate: startAt ? new Date(startAt) : null,
+      dueDate: endAt ? new Date(endAt) : startAt ? new Date(startAt) : null,
+      teamId,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -94,7 +106,19 @@ function EventDialog({
             <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Detalhes do evento..." />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {onConvertToTask && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2 text-xs sm:mr-auto"
+              onClick={handleConvertToTask}
+              disabled={!title.trim()}
+            >
+              <ListTodo className="w-3.5 h-3.5" />
+              Converter em Tarefa
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button
             onClick={() => mutation.mutate()}
@@ -118,6 +142,9 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TeamEvent | null>(null);
+
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [taskInitialData, setTaskInitialData] = useState<InitialTaskData | undefined>();
 
   const { data: teams = [] } = useQuery<TeamWithMembers[]>({ queryKey: ["/api/teams"] });
   const selectedTeam = teams.find(t => t.id === selectedTeamId);
@@ -143,7 +170,6 @@ export default function CalendarPage() {
     onError: () => toast({ title: "Erro ao remover evento", variant: "destructive" }),
   });
 
-  // Events on selected month
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
   const monthEvents = events.filter(e => {
@@ -151,13 +177,16 @@ export default function CalendarPage() {
     return d >= monthStart && d <= monthEnd;
   });
 
-  // Events on selected day
   const dayEvents = selectedDay
     ? events.filter(e => isSameDay(new Date(e.startAt), selectedDay))
     : monthEvents;
 
-  // Dates with events (for highlighting)
   const eventDates = events.map(e => new Date(e.startAt));
+
+  const handleConvertToTask = (data: InitialTaskData) => {
+    setTaskInitialData(data);
+    setTaskModalOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -254,26 +283,44 @@ export default function CalendarPage() {
                       </div>
                       {ev.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{ev.description}</p>}
                     </div>
-                    {isLeadOrAdmin && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => { setEditingEvent(ev); setDialogOpen(true); }}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => deleteEventMutation.mutate(ev.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                        title="Converter em tarefa"
+                        onClick={() => handleConvertToTask({
+                          title: ev.title,
+                          description: ev.description || "",
+                          startDate: new Date(ev.startAt),
+                          dueDate: ev.endAt ? new Date(ev.endAt) : new Date(ev.startAt),
+                          teamId: selectedTeamId,
+                        })}
+                      >
+                        <ListTodo className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Tarefa</span>
+                      </Button>
+                      {isLeadOrAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => { setEditingEvent(ev); setDialogOpen(true); }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => deleteEventMutation.mutate(ev.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -288,6 +335,13 @@ export default function CalendarPage() {
         event={editingEvent}
         teamId={selectedTeamId}
         onSaved={() => setEditingEvent(null)}
+        onConvertToTask={isLeadOrAdmin ? handleConvertToTask : undefined}
+      />
+
+      <TaskModal
+        controlledOpen={taskModalOpen}
+        onControlledOpenChange={setTaskModalOpen}
+        initialData={taskInitialData}
       />
     </div>
   );
