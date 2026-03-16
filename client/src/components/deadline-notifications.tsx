@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Clock, Bell, CheckCircle2, XCircle } from "lucide-react";
 import { differenceInDays, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toLocalNoon } from "@/lib/utils";
 import type { TaskWithDetails } from "@shared/schema";
 
 export default function DeadlineNotifications() {
@@ -24,7 +25,7 @@ export default function DeadlineNotifications() {
     tasks.forEach(task => {
       if (!task.dueDate || task.status === 'done') return;
 
-      const dueDate = new Date(task.dueDate);
+      const dueDate = toLocalNoon(task.dueDate) || new Date(task.dueDate);
       const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
       const daysUntilDue = differenceInDays(dueDateStart, todayStart);
 

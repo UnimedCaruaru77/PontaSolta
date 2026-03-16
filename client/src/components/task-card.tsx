@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, toLocalNoon } from "@/lib/utils";
 import { Lock } from "lucide-react";
 import type { TaskWithDetails, SharedTeamWithAssignee } from "@shared/schema";
 
@@ -29,7 +29,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
   const isDayOverdue = (dueDate: Date | string | null | undefined): boolean => {
     if (!dueDate) return false;
-    const dueDay = new Date(dueDate);
+    const dueDay = toLocalNoon(dueDate) || new Date(dueDate);
     dueDay.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -82,7 +82,7 @@ export default function TaskCard({ task }: TaskCardProps) {
 
   const formatDueDate = (dueDate: Date | string | null) => {
     if (!dueDate) return "Sem prazo";
-    const date = new Date(dueDate);
+    const date = toLocalNoon(dueDate) || new Date(dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -103,8 +103,8 @@ export default function TaskCard({ task }: TaskCardProps) {
 
   const getSlaInfo = () => {
     if (!task.ticketNumber || !task.dueDate) return null;
-    const start = task.startDate ? new Date(task.startDate) : new Date(task.createdAt!);
-    const end = new Date(task.dueDate);
+    const start = task.startDate ? (toLocalNoon(task.startDate) || new Date(task.startDate)) : new Date(task.createdAt!);
+    const end = toLocalNoon(task.dueDate) || new Date(task.dueDate);
     const now = new Date();
     const total = end.getTime() - start.getTime();
     if (total <= 0) return null;

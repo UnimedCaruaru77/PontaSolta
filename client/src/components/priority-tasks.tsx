@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, toLocalNoon } from "@/lib/utils";
 import type { TaskWithDetails } from "@shared/schema";
 
 export default function PriorityTasks() {
@@ -61,7 +61,7 @@ export default function PriorityTasks() {
 
   const formatDeadline = (dueDate: Date | string | null) => {
     if (!dueDate) return "Sem prazo";
-    const date = new Date(dueDate);
+    const date = toLocalNoon(dueDate) || new Date(dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
