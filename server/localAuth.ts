@@ -5,6 +5,7 @@ import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import MemoryStore from "memorystore";
 import { storage } from "./storage";
+import { pool } from "./db";
 
 // Emails que terão papel de administrador automaticamente
 const ADMIN_EMAILS = [
@@ -32,7 +33,7 @@ export function getSession() {
   } else {
     const pgStore = connectPg(session);
     sessionStore = new pgStore({
-      conString: process.env.DATABASE_URL,
+      pool,
       createTableIfMissing: false,
       ttl: sessionTtl,
       tableName: "sessions",
