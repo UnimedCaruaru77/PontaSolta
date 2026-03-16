@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { TaskDetailsModal } from "@/components/task-details-modal";
-import { cn } from "@/lib/utils";
+import { cn, toLocalNoon } from "@/lib/utils";
 import { Filter, ChevronDown } from "lucide-react";
 import type { TaskWithDetails } from "@shared/schema";
 
@@ -85,7 +85,7 @@ export default function Tasks() {
 
   const formatDeadline = (dueDate: Date | string | null) => {
     if (!dueDate) return "Sem prazo";
-    const date = new Date(dueDate);
+    const date = toLocalNoon(dueDate) || new Date(dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());

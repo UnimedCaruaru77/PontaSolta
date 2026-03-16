@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
+import { toLocalNoon } from "@/lib/utils";
 import { TaskComments } from "./task-comments";
 import { TaskAuditLog } from "./task-audit-log";
 import { useState } from "react";
@@ -215,8 +216,8 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
   const getSlaInfo = () => {
     if (!task?.ticketNumber || !task?.dueDate) return null;
-    const start = task.startDate ? new Date(task.startDate) : new Date(task.createdAt!);
-    const end = new Date(task.dueDate);
+    const start = task.startDate ? toLocalNoon(task.startDate)! : new Date(task.createdAt!);
+    const end = toLocalNoon(task.dueDate)!;
     const now = new Date();
     const total = end.getTime() - start.getTime();
     if (total <= 0) return null;
@@ -264,11 +265,12 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
   const isDayOverdue = (dueDate: string | Date | null | undefined) => {
     if (!dueDate) return false;
-    const dueDay = new Date(dueDate);
-    dueDay.setHours(0, 0, 0, 0);
+    const noon = toLocalNoon(dueDate);
+    if (!noon) return false;
+    noon.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return dueDay < today;
+    return noon < today;
   };
   const isOverdue = task?.dueDate && isDayOverdue(task.dueDate) && task?.status !== 'done';
   const isRenegotiatedOverdue = task?.status === 'renegotiated' && isDayOverdue(task?.dueDate);
@@ -513,7 +515,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                       <Clock className="size-3" /> Data de início
                     </p>
                     <DatePicker
-                      value={task.startDate ? new Date(task.startDate) : null}
+                      value={task.startDate ? toLocalNoon(task.startDate) : null}
                       onChange={date => updateMutation.mutate({ startDate: date ? date.toISOString() : null })}
                       disabled={updateMutation.isPending}
                       placeholder="Definir início..."
@@ -526,7 +528,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                       {isOverdue ? 'Prazo vencido — repactue abaixo' : 'Prazo final'}
                     </p>
                     <DatePicker
-                      value={task.dueDate ? new Date(task.dueDate) : null}
+                      value={task.dueDate ? toLocalNoon(task.dueDate) : null}
                       onChange={date => updateMutation.mutate({ dueDate: date ? date.toISOString() : null })}
                       disabled={updateMutation.isPending}
                       placeholder="Definir prazo..."

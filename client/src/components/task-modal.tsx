@@ -26,11 +26,25 @@ const taskFormSchema = insertTaskSchema
     boardId: z.string().min(1, "Quadro é obrigatório"),
     assigneeId: z.union([z.literal("self"), z.string().min(1)]),
     startDate: z.preprocess(
-      v => (typeof v === 'string' && v ? new Date(v) : v instanceof Date ? v : null),
+      v => {
+        if (typeof v === 'string' && v) {
+          const parts = v.split('-');
+          if (parts.length === 3) return new Date(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0);
+          return new Date(v);
+        }
+        return v instanceof Date ? v : null;
+      },
       z.date({ required_error: "Data de início é obrigatória", invalid_type_error: "Data de início é obrigatória" })
     ),
     dueDate: z.preprocess(
-      v => (typeof v === 'string' && v ? new Date(v) : v instanceof Date ? v : null),
+      v => {
+        if (typeof v === 'string' && v) {
+          const parts = v.split('-');
+          if (parts.length === 3) return new Date(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0);
+          return new Date(v);
+        }
+        return v instanceof Date ? v : null;
+      },
       z.date({ required_error: "Data de entrega é obrigatória", invalid_type_error: "Data de entrega é obrigatória" })
     ),
     ticketNumber: z.string().optional(),
@@ -479,8 +493,12 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
                       className="bg-input border-border focus:border-primary"
                       data-testid="input-start-date"
                       {...field}
-                      value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                      onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                      value={field.value ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}` : ''}
+                      onChange={e => {
+                        if (!e.target.value) return field.onChange(null);
+                        const [y, m, d] = e.target.value.split('-').map(Number);
+                        field.onChange(new Date(y, m - 1, d, 12, 0, 0));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -500,8 +518,12 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
                       className="bg-input border-border focus:border-primary"
                       data-testid="input-due-date"
                       {...field}
-                      value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                      onChange={e => field.onChange(e.target.value ? new Date(e.target.value) : null)}
+                      value={field.value ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}` : ''}
+                      onChange={e => {
+                        if (!e.target.value) return field.onChange(null);
+                        const [y, m, d] = e.target.value.split('-').map(Number);
+                        field.onChange(new Date(y, m - 1, d, 12, 0, 0));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

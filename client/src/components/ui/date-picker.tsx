@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, toLocalNoon } from "@/lib/utils";
 
 interface DatePickerProps {
   value: Date | null;
@@ -22,7 +22,7 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
   const [inputMode, setInputMode] = useState(false);
 
   const handleCalendarSelect = (day: Date | undefined) => {
-    onChange(day ?? null);
+    onChange(day ? toLocalNoon(day) : null);
     setOpen(false);
     setInputMode(false);
     setInputValue("");
@@ -34,7 +34,7 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
     if (raw.length === 10) {
       const parsed = parse(raw, "dd/MM/yyyy", new Date());
       if (isValid(parsed)) {
-        onChange(parsed);
+        onChange(toLocalNoon(parsed));
         setInputMode(false);
         setInputValue("");
         setOpen(false);
