@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language. Portuguese (Brazilian)
 
 ## Database Design
 - **ORM**: Drizzle ORM with PostgreSQL
-- **Database**: PostgreSQL (Neon serverless)
+- **Database**: PostgreSQL (standard `pg` driver, compatible with Neon, Cloud SQL, RDS). Optional SSL via `USE_SSL=true` env var.
 - **Schema Highlights**:
   - `users`: With Google OAuth fields and role-based access.
   - `teams`: Organizational units.
