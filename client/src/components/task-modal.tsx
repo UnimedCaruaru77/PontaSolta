@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
 import { LayoutTemplate } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { User, Board, TeamWithMembers, TaskTemplate } from "@shared/schema";
 
 const taskFormSchema = insertTaskSchema
@@ -86,6 +87,7 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
       ticketNumber: "",
       teamId: defaultTeamId || "",
       boardId: defaultBoardId || "",
+      startDate: toLocalNoon(new Date()) as Date,
     },
   });
 
@@ -142,7 +144,7 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
         ticketNumber: "",
         teamId: initialData.teamId || defaultTeamId || "",
         boardId: defaultBoardId || "",
-        startDate: initialData.startDate ?? undefined,
+        startDate: initialData.startDate ?? (toLocalNoon(new Date()) as Date),
         dueDate: initialData.dueDate ?? undefined,
       });
     }
@@ -475,13 +477,10 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
                 <FormItem>
                   <FormLabel>Data de Início *</FormLabel>
                   <FormControl>
-                    <Input
-                      type="date"
-                      className="bg-input border-border focus:border-primary"
-                      data-testid="input-start-date"
-                      {...field}
-                      value={field.value ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}` : ''}
-                      onChange={e => field.onChange(e.target.value ? toLocalNoon(e.target.value) : null)}
+                    <DatePicker
+                      value={field.value ?? null}
+                      onChange={field.onChange}
+                      placeholder="Selecionar data de início"
                     />
                   </FormControl>
                   <FormMessage />
@@ -496,13 +495,10 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
                 <FormItem>
                   <FormLabel>Data de Entrega *</FormLabel>
                   <FormControl>
-                    <Input
-                      type="date"
-                      className="bg-input border-border focus:border-primary"
-                      data-testid="input-due-date"
-                      {...field}
-                      value={field.value ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}` : ''}
-                      onChange={e => field.onChange(e.target.value ? toLocalNoon(e.target.value) : null)}
+                    <DatePicker
+                      value={field.value ?? null}
+                      onChange={field.onChange}
+                      placeholder="Selecionar data de entrega"
                     />
                   </FormControl>
                   <FormMessage />

@@ -107,14 +107,7 @@ export function DatePicker({ value, onChange, disabled, placeholder = "Seleciona
           selected={value ?? undefined}
           onSelect={handleCalendarSelect}
           locale={ptBR}
-          captionLayout="dropdown-buttons"
-          fromYear={2020}
-          toYear={2035}
           className="[&_.rdp-day_button:hover]:bg-primary/20 [&_.rdp-day_button.rdp-day_selected]:bg-primary"
-          classNames={{
-            caption_dropdowns: "flex gap-1",
-            dropdown: "bg-popover border border-border text-foreground rounded text-xs px-1 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary",
-          }}
           initialFocus
         />
         {value && (
