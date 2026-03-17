@@ -44,9 +44,9 @@ export default function KanbanBoard() {
   });
 
   const taskQueryKey = selectedBoardId
-    ? [`/api/tasks?boardId=${selectedBoardId}`]
+    ? ["/api/tasks", { boardId: selectedBoardId }]
     : selectedTeamId
-    ? [`/api/tasks?teamId=${selectedTeamId}`]
+    ? ["/api/tasks", { teamId: selectedTeamId }]
     : ["/api/tasks"];
 
   const { data: tasks, isLoading } = useQuery<TaskWithDetails[]>({
