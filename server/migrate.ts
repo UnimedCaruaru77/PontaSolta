@@ -5,13 +5,18 @@ import { sql } from "drizzle-orm";
 export async function runMigrations() {
   console.log("[migrate] Starting database schema sync...");
   try {
+    const migrateEnv = {
+      ...process.env,
+      DATABASE_URL: process.env.CLOUD_SQL_URL || process.env.DATABASE_URL,
+    };
+
     const result = spawnSync(
       "npx",
       ["drizzle-kit", "push", "--force"],
       {
         input: "y\ny\ny\ny\ny\n",
         stdio: ["pipe", "pipe", "pipe"],
-        env: process.env,
+        env: migrateEnv,
         cwd: process.cwd(),
         timeout: 60000,
         encoding: "utf-8",

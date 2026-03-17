@@ -2,14 +2,16 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
 
-if (!process.env.DATABASE_URL) {
+const connectionString = process.env.CLOUD_SQL_URL || process.env.DATABASE_URL;
+
+if (!connectionString) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "CLOUD_SQL_URL or DATABASE_URL must be set. Did you forget to provision a database?",
   );
 }
 
 const poolConfig: pg.PoolConfig = {
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
 };
 
 if (process.env.USE_SSL === "true") {
