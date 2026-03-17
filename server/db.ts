@@ -10,6 +10,9 @@ if (!connectionString) {
   );
 }
 
+const dbSource = process.env.CLOUD_SQL_URL ? "CLOUD_SQL_URL" : "DATABASE_URL (fallback)";
+console.log(`[db] Connecting via: ${dbSource}`);
+
 const poolConfig: pg.PoolConfig = {
   connectionString,
 };
