@@ -8,7 +8,7 @@ export async function runMigrations() {
     const isProduction = process.env.NODE_ENV === "production";
     const activeUrl = isProduction
       ? process.env.CLOUD_SQL_URL
-      : (process.env.DATABASE_URL || process.env.CLOUD_SQL_URL);
+      : process.env.DATABASE_URL;
 
     const migrateEnv = {
       ...process.env,

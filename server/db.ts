@@ -6,7 +6,7 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const connectionString = isProduction
   ? process.env.CLOUD_SQL_URL
-  : (process.env.DATABASE_URL || process.env.CLOUD_SQL_URL);
+  : process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error(
@@ -20,7 +20,7 @@ console.log(`[db] Environment: ${isProduction ? "production → CLOUD_SQL_URL" :
 
 const poolConfig: pg.PoolConfig = { connectionString };
 
-if (isProduction) {
+if (process.env.USE_SSL === "true") {
   poolConfig.ssl = { rejectUnauthorized: false };
 }
 
