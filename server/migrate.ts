@@ -5,9 +5,14 @@ import { sql } from "drizzle-orm";
 export async function runMigrations() {
   console.log("[migrate] Starting database schema sync...");
   try {
+    const isProduction = process.env.NODE_ENV === "production";
+    const activeUrl = isProduction
+      ? process.env.CLOUD_SQL_URL
+      : (process.env.DATABASE_URL || process.env.CLOUD_SQL_URL);
+
     const migrateEnv = {
       ...process.env,
-      DATABASE_URL: process.env.CLOUD_SQL_URL || process.env.DATABASE_URL,
+      DATABASE_URL: activeUrl,
     };
 
     const result = spawnSync(

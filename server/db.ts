@@ -2,19 +2,25 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
 
-const connectionString = process.env.CLOUD_SQL_URL || process.env.DATABASE_URL;
+const isProduction = process.env.NODE_ENV === "production";
+
+const connectionString = isProduction
+  ? process.env.CLOUD_SQL_URL
+  : (process.env.DATABASE_URL || process.env.CLOUD_SQL_URL);
 
 if (!connectionString) {
   throw new Error(
-    "CLOUD_SQL_URL or DATABASE_URL must be set. Did you forget to provision a database?",
+    isProduction
+      ? "CLOUD_SQL_URL must be set in production."
+      : "DATABASE_URL must be set in development. Did you forget to provision a database?",
   );
 }
 
-const poolConfig: pg.PoolConfig = {
-  connectionString,
-};
+console.log(`[db] Environment: ${isProduction ? "production → CLOUD_SQL_URL" : "development → DATABASE_URL"}`);
 
-if (process.env.USE_SSL === "true") {
+const poolConfig: pg.PoolConfig = { connectionString };
+
+if (isProduction) {
   poolConfig.ssl = { rejectUnauthorized: false };
 }
 

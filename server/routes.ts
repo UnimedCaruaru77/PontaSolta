@@ -643,21 +643,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) { res.status(500).json({ message: "Falha ao atualizar progresso" }); }
   });
 
-  app.get('/api/export-all', isAuthenticated, async (req: any, res) => {
-    try {
-      const { db } = await import('./db');
-      const { sql } = await import('drizzle-orm');
-      const teams = await db.execute(sql`SELECT * FROM teams ORDER BY created_at`);
-      const users = await db.execute(sql`SELECT id, email, name, role, picture FROM users ORDER BY name`);
-      const tasks = await db.execute(sql`SELECT * FROM tasks ORDER BY created_at`);
-      const boards = await db.execute(sql`SELECT * FROM boards ORDER BY created_at`);
-      const teamMembers = await db.execute(sql`SELECT * FROM team_members`);
-      res.json({ teams: teams.rows, users: users.rows, tasks: tasks.rows, boards: boards.rows, teamMembers: teamMembers.rows });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -24,7 +24,10 @@ Preferred communication style: Simple, everyday language. Portuguese (Brazilian)
 
 ## Database Design
 - **ORM**: Drizzle ORM with PostgreSQL
-- **Database**: PostgreSQL (standard `pg` driver, compatible with Neon, Cloud SQL, RDS). Optional SSL via `USE_SSL=true` env var.
+- **Database**: PostgreSQL (standard `pg` driver). Two separate environments:
+  - **Development**: `DATABASE_URL` (Replit-managed Neon) — for testing, no SSL
+  - **Production**: `CLOUD_SQL_URL` (Google Cloud SQL, southamerica-east1) — real data, SSL enabled automatically
+  - Selection is automatic via `NODE_ENV`: production → CLOUD_SQL_URL, development → DATABASE_URL
 - **Schema Highlights**:
   - `users`: With Google OAuth fields and role-based access.
   - `teams`: Organizational units.
