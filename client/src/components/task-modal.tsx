@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,10 +15,12 @@ import { toLocalNoon } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
-import { LayoutTemplate } from "lucide-react";
+import { LayoutTemplate, Share2, Plus, X, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import type { User, Board, TeamWithMembers, TaskTemplate } from "@shared/schema";
+
+type PendingShare = { teamId: string; assigneeId: string | null };
 
 const taskFormSchema = insertTaskSchema
   .omit({ creatorId: true })
@@ -58,11 +61,12 @@ interface TaskModalProps {
 
 export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpen, onControlledOpenChange, initialData }: TaskModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const [pendingShares, setPendingShares] = useState<PendingShare[]>([]);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled
-    ? (v: boolean) => onControlledOpenChange?.(v)
-    : setInternalOpen;
+    ? (v: boolean) => { onControlledOpenChange?.(v); if (!v) setPendingShares([]); }
+    : (v: boolean) => { setInternalOpen(v); if (!v) setPendingShares([]); };
 
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -163,7 +167,14 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskFormData) => {
-      await apiRequest("POST", "/api/tasks", data);
+      const res = await apiRequest("POST", "/api/tasks", data);
+      const task = await res.json();
+      for (const share of pendingShares) {
+        await apiRequest("POST", `/api/tasks/${task.id}/shares`, { teamId: share.teamId });
+        if (share.assigneeId) {
+          await apiRequest("PATCH", `/api/tasks/${task.id}/shares/${share.teamId}`, { assigneeId: share.assigneeId });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
@@ -171,6 +182,7 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
       toast({ title: "Tarefa criada com sucesso!" });
       setOpen(false);
       form.reset();
+      setPendingShares([]);
     },
     onError: () => {
       toast({ title: "Erro", description: "Falha ao criar tarefa.", variant: "destructive" });
@@ -375,6 +387,97 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
               </FormItem>
             )}
           />
+
+          {/* Shared Responsibility */}
+          {watchedTeamId && (
+            <div className="bg-muted p-4 rounded border border-border">
+              <h4 className="text-sm font-semibold text-primary mb-1 flex items-center gap-2">
+                <Share2 className="size-4" /> Responsabilidade Compartilhada
+              </h4>
+              <p className="text-xs text-muted-foreground mb-3">
+                Adicione equipes co-responsáveis antes de criar a tarefa.
+              </p>
+
+              {/* Pending shared teams list */}
+              {pendingShares.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {pendingShares.map(share => {
+                    const teamObj = (teams as TeamWithMembers[]).find(t => t.id === share.teamId);
+                    if (!teamObj) return null;
+                    const members: User[] = teamObj.members || [];
+                    const assignee = members.find(m => m.id === share.assigneeId);
+                    return (
+                      <div key={share.teamId} className="bg-background rounded border border-border/50 p-2 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-xs">
+                            <Users className="size-3 mr-1" />
+                            {teamObj.name}{share.teamId === watchedTeamId ? " (mesma equipe)" : ""}
+                          </Badge>
+                          <button
+                            type="button"
+                            onClick={() => setPendingShares(prev => prev.filter(s => s.teamId !== share.teamId))}
+                            className="text-muted-foreground/70 hover:text-red-400 transition-colors"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {assignee && (
+                            <Avatar className="size-5">
+                              <AvatarImage src={assignee.profileImageUrl || undefined} />
+                              <AvatarFallback className="text-[10px] bg-blue-500/20 text-blue-300">
+                                {assignee.firstName?.[0]}{assignee.lastName?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <Select
+                            value={share.assigneeId || "none"}
+                            onValueChange={v => setPendingShares(prev =>
+                              prev.map(s => s.teamId === share.teamId ? { ...s, assigneeId: v === 'none' ? null : v } : s)
+                            )}
+                          >
+                            <SelectTrigger className="h-7 text-[11px] bg-muted border-border flex-1">
+                              <SelectValue placeholder="Atribuir responsável..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sem responsável</SelectItem>
+                              {members.map(m => (
+                                <SelectItem key={m.id} value={m.id}>
+                                  {m.firstName && m.lastName ? `${m.firstName} ${m.lastName}` : m.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Add team to share */}
+              {(teams as TeamWithMembers[]).filter(t => !pendingShares.some(s => s.teamId === t.id)).length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={v => { if (v) setPendingShares(prev => [...prev, { teamId: v, assigneeId: null }]); }}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-muted border-border">
+                    <Plus className="size-3 mr-1" />
+                    <SelectValue placeholder="Adicionar equipe..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(teams as TeamWithMembers[])
+                      .filter(t => !pendingShares.some(s => s.teamId === t.id))
+                      .map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}{t.id === watchedTeamId ? " (mesma equipe)" : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
 
           {/* Priority, Urgency, Importance, Complexity */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
