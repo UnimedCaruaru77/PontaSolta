@@ -20,7 +20,7 @@ console.log(`[db] Environment: ${isProduction ? "production → CLOUD_SQL_URL" :
 
 const poolConfig: pg.PoolConfig = { connectionString };
 
-if (process.env.USE_SSL === "true") {
+if (isProduction && process.env.USE_SSL === "true") {
   poolConfig.ssl = { rejectUnauthorized: false };
 }
 
