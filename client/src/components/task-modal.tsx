@@ -169,17 +169,27 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
     mutationFn: async (data: TaskFormData) => {
       const res = await apiRequest("POST", "/api/tasks", data);
       const task = await res.json();
+      let sharesFailed = false;
       for (const share of pendingShares) {
-        await apiRequest("POST", `/api/tasks/${task.id}/shares`, { teamId: share.teamId });
-        if (share.assigneeId) {
-          await apiRequest("PATCH", `/api/tasks/${task.id}/shares/${share.teamId}`, { assigneeId: share.assigneeId });
+        try {
+          await apiRequest("POST", `/api/tasks/${task.id}/shares`, { teamId: share.teamId });
+          if (share.assigneeId) {
+            await apiRequest("PATCH", `/api/tasks/${task.id}/shares/${share.teamId}`, { assigneeId: share.assigneeId });
+          }
+        } catch {
+          sharesFailed = true;
         }
       }
+      return { sharesFailed };
     },
-    onSuccess: () => {
+    onSuccess: ({ sharesFailed }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Tarefa criada com sucesso!" });
+      if (sharesFailed) {
+        toast({ title: "Tarefa criada", description: "Alguns compartilhamentos não puderam ser aplicados.", variant: "destructive" });
+      } else {
+        toast({ title: "Tarefa criada com sucesso!" });
+      }
       setOpen(false);
       form.reset();
       setPendingShares([]);
@@ -310,6 +320,7 @@ export default function TaskModal({ defaultTeamId, defaultBoardId, controlledOpe
                       field.onChange(v);
                       form.setValue("boardId", "");
                       form.setValue("assigneeId", "self");
+                      setPendingShares([]);
                     }}
                     value={field.value || ""}
                   >
