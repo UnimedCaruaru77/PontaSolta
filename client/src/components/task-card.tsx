@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, toLocalNoon } from "@/lib/utils";
-import { Lock } from "lucide-react";
+import { Lock, Share2 } from "lucide-react";
 import type { TaskWithDetails, SharedTeamWithAssignee } from "@shared/schema";
 
 interface TaskCardProps {
@@ -146,6 +146,24 @@ export default function TaskCard({ task }: TaskCardProps) {
       )}
       data-testid={`task-card-${task.id}`}
     >
+      {task.isSharedWithCurrentTeam && (
+        <div className="flex items-center gap-1 mb-1.5">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className="bg-blue-500/15 text-blue-300 border-blue-500/40 text-[10px] px-1.5 py-0 cursor-default flex items-center gap-1">
+                  <Share2 className="size-2.5" />
+                  Compartilhado
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                Tarefa da equipe: {task.team?.name || "outra equipe"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-2">
         <h4
           className={cn(

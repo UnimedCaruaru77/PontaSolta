@@ -363,23 +363,41 @@ export class DatabaseStorage implements IStorage {
     const conditions: any[] = [];
     if (filters?.assigneeId) conditions.push(eq(tasks.assigneeId, filters.assigneeId));
     if (filters?.creatorId) conditions.push(eq(tasks.creatorId, filters.creatorId));
-    if (filters?.teamId) conditions.push(eq(tasks.teamId, filters.teamId));
-    if (filters?.boardId) conditions.push(eq(tasks.boardId, filters.boardId));
     if (filters?.status) conditions.push(eq(tasks.status, filters.status as any));
 
-    if (filters?.teamIds && filters.teamIds.length > 0) {
-      const uid = filters.requestingUserId;
-      const teamFilter = inArray(tasks.teamId, filters.teamIds);
-      if (uid) {
-        conditions.push(or(teamFilter, eq(tasks.assigneeId, uid), eq(tasks.creatorId, uid)));
-      } else {
-        conditions.push(teamFilter);
-      }
-    } else if (filters?.teamIds && filters.teamIds.length === 0) {
-      if (filters.requestingUserId) {
-        conditions.push(or(eq(tasks.assigneeId, filters.requestingUserId), eq(tasks.creatorId, filters.requestingUserId)));
-      } else {
-        return [];
+    // Pre-fetch IDs of tasks shared with the viewing team(s)
+    let sharedTaskIds: string[] = [];
+    if (filters?.teamId) {
+      const rows = await db.select({ id: taskShares.taskId }).from(taskShares).where(eq(taskShares.teamId, filters.teamId));
+      sharedTaskIds = rows.map(r => r.id);
+    } else if (filters?.teamIds && filters.teamIds.length > 0) {
+      const rows = await db.select({ id: taskShares.taskId }).from(taskShares).where(inArray(taskShares.teamId, filters.teamIds));
+      sharedTaskIds = [...new Set(rows.map(r => r.id))];
+    }
+
+    if (filters?.teamId) {
+      // Own team's tasks (filtered by boardId if given) OR shared tasks (always shown, boardId doesn't apply)
+      const ownClauses: any[] = [eq(tasks.teamId, filters.teamId)];
+      if (filters.boardId) ownClauses.push(eq(tasks.boardId, filters.boardId));
+      const ownClause = ownClauses.length === 1 ? ownClauses[0] : and(...ownClauses);
+      conditions.push(sharedTaskIds.length > 0 ? or(ownClause, inArray(tasks.id, sharedTaskIds)) : ownClause);
+    } else {
+      if (filters?.boardId) conditions.push(eq(tasks.boardId, filters.boardId));
+      if (filters?.teamIds !== undefined) {
+        if (filters.teamIds.length > 0) {
+          const uid = filters.requestingUserId;
+          const teamFilter = inArray(tasks.teamId, filters.teamIds);
+          const orClauses: any[] = [teamFilter];
+          if (uid) { orClauses.push(eq(tasks.assigneeId, uid)); orClauses.push(eq(tasks.creatorId, uid)); }
+          if (sharedTaskIds.length > 0) orClauses.push(inArray(tasks.id, sharedTaskIds));
+          conditions.push(or(...orClauses));
+        } else {
+          if (filters.requestingUserId) {
+            conditions.push(or(eq(tasks.assigneeId, filters.requestingUserId), eq(tasks.creatorId, filters.requestingUserId)));
+          } else {
+            return [];
+          }
+        }
       }
     }
 
@@ -393,7 +411,19 @@ export class DatabaseStorage implements IStorage {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(tasks.createdAt));
 
-    return this.hydrateTaskDetails(results);
+    const hydratedTasks = await this.hydrateTaskDetails(results);
+    const sharedSet = new Set(sharedTaskIds);
+    const viewingTeamId = filters?.teamId;
+    const viewingTeamIds = filters?.teamIds;
+
+    return hydratedTasks.map(t => ({
+      ...t,
+      isSharedWithCurrentTeam: viewingTeamId
+        ? t.teamId !== viewingTeamId
+        : viewingTeamIds?.length
+          ? !viewingTeamIds.includes(t.teamId!) && sharedSet.has(t.id)
+          : false,
+    }));
   }
 
   private async hydrateTaskDetails(results: any[]): Promise<TaskWithDetails[]> {

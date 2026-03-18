@@ -247,7 +247,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
 
   const currentSharedTeamIds = new Set((task?.sharedTeams || []).map(t => t.id));
   const availableToShare = (allTeams as Team[]).filter(
-    t => t.id !== task?.teamId && !currentSharedTeamIds.has(t.id)
+    t => !currentSharedTeamIds.has(t.id)
   );
 
   // Dependencies: tasks that can be added (excluding self, already deps, and tasks that depend on this one)
@@ -697,7 +697,7 @@ export function TaskDetailsModal({ taskId, open, onOpenChange, onTaskClick }: Ta
                       <SelectContent className="bg-popover border-border">
                         {availableToShare.map(t => (
                           <SelectItem key={t.id} value={t.id}>
-                            {t.name}
+                            {t.name}{t.id === task?.teamId ? " (mesma equipe)" : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>

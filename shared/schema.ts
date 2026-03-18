@@ -442,6 +442,7 @@ export type TaskWithDetails = Task & {
   dependencies?: TaskSummary[];
   dependents?: TaskSummary[];
   blockedBy?: boolean;
+  isSharedWithCurrentTeam?: boolean;
 };
 
 export type BoardWithTeam = Board & { team: Team };
